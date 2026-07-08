@@ -3,7 +3,7 @@ import type { ProcessInput, ProcessResult } from './codec.types'
 import type { ImagenState } from '../store/useImagenStore'
 import { useImagenStore } from '../store/useImagenStore'
 import { resolveSettings } from '../lib/settings'
-import { outputFilename } from '../lib/filenames'
+import { uniqueOutputName } from '../lib/filenames'
 
 export interface OptimizerLike {
   optimizeAll: () => void
@@ -71,6 +71,9 @@ export class Optimizer implements OptimizerLike {
     const settings = resolveSettings(item.settings, state.globalSettings)
     const blob = new Blob([result.buffer], { type: result.outputType })
     const url = URL.createObjectURL(blob)
+    const takenNames = state.images
+      .filter((entry) => entry.id !== id && entry.result != null)
+      .map((entry) => entry.result!.outputName)
     state.markDone(id, {
       blob,
       url,
@@ -78,7 +81,7 @@ export class Optimizer implements OptimizerLike {
       outputBytes: result.bytes,
       width: result.width,
       height: result.height,
-      outputName: outputFilename(item.name, settings.format),
+      outputName: uniqueOutputName(item.name, settings.format, takenNames),
     })
   }
 }

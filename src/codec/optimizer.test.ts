@@ -100,6 +100,19 @@ describe('Optimizer', () => {
     expect(result.height).toBe(8)
   })
 
+  it('de-duplicates output filenames across items that resolve to the same name', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    seed(['photo.jpg', 'photo.jpg', 'photo.jpg'], 'image/jpeg')
+
+    optimizer.optimizeAll()
+    await runToSettled()
+
+    const names = useImagenStore.getState().images.map((i) => i.result!.outputName)
+    expect(new Set(names).size).toBe(3)
+    expect(names).toEqual(expect.arrayContaining(['photo.webp', 'photo-1.webp', 'photo-2.webp']))
+  })
+
   it('passes the effective per-image settings to the worker (override wins over global)', async () => {
     const fake = new FakeWorkers()
     const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 2 })

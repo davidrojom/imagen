@@ -128,4 +128,38 @@ describe('ImageCard', () => {
     expect(screen.queryByTestId('output-size')).not.toBeInTheDocument()
     expect(screen.queryByTestId('savings')).not.toBeInTheDocument()
   })
+
+  it('exposes a per-item download control pointing at the object URL with the output filename', () => {
+    const item = seedItem({
+      status: 'done',
+      result: {
+        blob: new Blob(['out']),
+        url: 'blob:out-1',
+        outputType: 'image/webp',
+        outputBytes: 512,
+        width: 800,
+        height: 600,
+        outputName: 'photo.webp',
+      },
+    })
+    render(<ImageCard item={item} />)
+    const download = screen.getByTestId('download-link')
+    expect(download).toHaveAttribute('href', 'blob:out-1')
+    expect(download).toHaveAttribute('download', 'photo.webp')
+  })
+
+  it('does not render a download control while the item is queued or processing', () => {
+    const queued = seedItem({ status: 'queued' })
+    const { rerender } = render(<ImageCard item={queued} />)
+    expect(screen.queryByTestId('download-link')).not.toBeInTheDocument()
+
+    rerender(<ImageCard item={{ ...queued, status: 'processing' }} />)
+    expect(screen.queryByTestId('download-link')).not.toBeInTheDocument()
+  })
+
+  it('does not render a download control for an errored item', () => {
+    const item = seedItem({ status: 'error', error: 'decode failed' })
+    render(<ImageCard item={item} />)
+    expect(screen.queryByTestId('download-link')).not.toBeInTheDocument()
+  })
 })

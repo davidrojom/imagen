@@ -102,6 +102,16 @@ export default function ImageCard({ item }: { item: ImageItem }) {
             </span>
           </div>
         ) : null}
+        {result ? (
+          <a
+            data-testid="download-link"
+            href={result.url}
+            download={result.outputName}
+            className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sky-400"
+          >
+            Download {result.outputName}
+          </a>
+        ) : null}
       </div>
     </li>
   )
