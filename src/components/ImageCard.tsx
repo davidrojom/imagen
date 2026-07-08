@@ -1,5 +1,6 @@
 import { useImagenStore } from '../store/useImagenStore'
 import { formatBytes, savingsPercent } from '../lib/savings'
+import PerImageSettings from './PerImageSettings'
 import type { ImageItem, ImageStatus } from '../types'
 
 const STATUS_META: Record<ImageStatus, { label: string; className: string }> = {
@@ -66,12 +67,23 @@ export default function ImageCard({ item }: { item: ImageItem }) {
           </span>
           <span data-testid="original-size">{formatBytes(item.originalBytes)}</span>
         </div>
-        <span
-          data-testid="status"
-          className={`mt-1 inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
-        >
-          {status.label}
-        </span>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span
+            data-testid="status"
+            className={`inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium ${status.className}`}
+          >
+            {status.label}
+          </span>
+          {item.settings != null ? (
+            <span
+              data-testid="override-indicator"
+              title="Uses custom settings (overrides global)"
+              className="inline-flex w-fit rounded-full bg-violet-500/20 px-2 py-0.5 text-xs font-medium text-violet-300"
+            >
+              Custom
+            </span>
+          ) : null}
+        </div>
         {item.status === 'error' && item.error ? (
           <p data-testid="error-message" className="mt-1 text-xs text-rose-300" title={item.error}>
             {item.error}
@@ -122,6 +134,7 @@ export default function ImageCard({ item }: { item: ImageItem }) {
             Download {result.outputName}
           </a>
         ) : null}
+        <PerImageSettings item={item} />
       </div>
     </li>
   )

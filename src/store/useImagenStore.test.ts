@@ -115,6 +115,40 @@ describe('settings actions', () => {
     useImagenStore.getState().setImageSettings(id, null)
     expect(useImagenStore.getState().images[0].settings).toBeNull()
   })
+
+  it('setImageSettings affects only the targeted image', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    const [id1] = useImagenStore.getState().images.map((i) => i.id)
+    useImagenStore.getState().setImageSettings(id1, { format: 'oxipng' })
+    const [first, second] = useImagenStore.getState().images
+    expect(first.settings?.format).toBe('oxipng')
+    expect(second.settings).toBeNull()
+  })
+
+  it('changing global settings does not alter an overridden image', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    const [id1] = useImagenStore.getState().images.map((i) => i.id)
+    useImagenStore.getState().setImageSettings(id1, { format: 'avif', quality: 30 })
+    useImagenStore.getState().setGlobalSettings({ format: 'mozjpeg', quality: 90 })
+    const [overridden] = useImagenStore.getState().images
+    expect(overridden.settings?.format).toBe('avif')
+    expect(overridden.settings?.quality).toBe(30)
+    expect(useImagenStore.getState().globalSettings.format).toBe('mozjpeg')
+  })
+
+  it('supports multiple independent overrides simultaneously', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg'), makeFile('c.jpg')])
+    const [id1, id2] = useImagenStore.getState().images.map((i) => i.id)
+    useImagenStore.getState().setImageSettings(id1, { format: 'oxipng' })
+    useImagenStore.getState().setImageSettings(id2, { format: 'avif' })
+    const [a, b, c] = useImagenStore.getState().images
+    expect(a.settings?.format).toBe('oxipng')
+    expect(b.settings?.format).toBe('avif')
+    expect(c.settings).toBeNull()
+  })
 })
 
 describe('effective settings selector', () => {

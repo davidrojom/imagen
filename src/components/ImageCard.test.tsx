@@ -190,4 +190,22 @@ describe('ImageCard', () => {
     render(<ImageCard item={item} />)
     expect(screen.queryByTestId('download-link')).not.toBeInTheDocument()
   })
+
+  it('shows an override indicator when the item carries per-image settings', () => {
+    const item = seedItem({ settings: defaultEncodeSettings('avif') })
+    render(<ImageCard item={item} />)
+    expect(screen.getByTestId('override-indicator')).toBeInTheDocument()
+  })
+
+  it('does not show an override indicator when the item uses global settings', () => {
+    const item = seedItem({ settings: null })
+    render(<ImageCard item={item} />)
+    expect(screen.queryByTestId('override-indicator')).not.toBeInTheDocument()
+  })
+
+  it('exposes the per-image settings editor', () => {
+    const item = seedItem()
+    render(<ImageCard item={item} />)
+    expect(screen.getByTestId('per-image-settings')).toBeInTheDocument()
+  })
 })
