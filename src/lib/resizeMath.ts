@@ -6,7 +6,13 @@ export interface Dimensions {
 }
 
 function toPixels(value: number): number {
+  if (!Number.isFinite(value)) return 1
   return Math.max(1, Math.round(value))
+}
+
+function normalizeTarget(value: number | undefined): number | undefined {
+  if (value == null || !Number.isFinite(value) || value <= 0) return undefined
+  return value
 }
 
 export function computeTargetDimensions(original: Dimensions, resize: ResizeSettings): Dimensions {
@@ -20,8 +26,8 @@ export function computeTargetDimensions(original: Dimensions, resize: ResizeSett
 
     case 'dimensions': {
       const keepAspect = resize.keepAspect ?? true
-      const targetWidth = resize.width
-      const targetHeight = resize.height
+      const targetWidth = normalizeTarget(resize.width)
+      const targetHeight = normalizeTarget(resize.height)
 
       if (targetWidth == null && targetHeight == null) {
         return { width: ow, height: oh }

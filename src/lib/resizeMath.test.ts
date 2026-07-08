@@ -66,4 +66,55 @@ describe('computeTargetDimensions', () => {
       height: 1,
     })
   })
+
+  it('clamps percentage 0 to a valid >=1px result instead of 0', () => {
+    const result = computeTargetDimensions(original, { mode: 'percentage', percentage: 0 })
+    expect(result.width).toBeGreaterThanOrEqual(1)
+    expect(result.height).toBeGreaterThanOrEqual(1)
+  })
+
+  it('never yields 0/NaN/negative for invalid percentage input', () => {
+    for (const percentage of [Number.NaN, -50]) {
+      const result = computeTargetDimensions(original, { mode: 'percentage', percentage })
+      expect(Number.isFinite(result.width)).toBe(true)
+      expect(Number.isFinite(result.height)).toBe(true)
+      expect(result.width).toBeGreaterThanOrEqual(1)
+      expect(result.height).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('keeps percentage 100 at the original dimensions', () => {
+    expect(computeTargetDimensions(original, { mode: 'percentage', percentage: 100 })).toEqual({
+      width: 800,
+      height: 600,
+    })
+  })
+
+  it('treats an empty/0/NaN width in dimensions mode as not provided', () => {
+    for (const width of [0, Number.NaN, -100] as number[]) {
+      expect(computeTargetDimensions(original, { mode: 'dimensions', width, keepAspect: true })).toEqual({
+        width: 800,
+        height: 600,
+      })
+    }
+  })
+
+  it('falls back to the other dimension when one is invalid (keep-aspect)', () => {
+    expect(
+      computeTargetDimensions(original, { mode: 'dimensions', width: Number.NaN, height: 300, keepAspect: true }),
+    ).toEqual({ width: 400, height: 300 })
+  })
+
+  it('never yields 0/NaN/negative for invalid dimensions with keep-aspect off', () => {
+    const result = computeTargetDimensions(original, {
+      mode: 'dimensions',
+      width: Number.NaN,
+      height: 0,
+      keepAspect: false,
+    })
+    expect(result.width).toBeGreaterThanOrEqual(1)
+    expect(result.height).toBeGreaterThanOrEqual(1)
+    expect(Number.isFinite(result.width)).toBe(true)
+    expect(Number.isFinite(result.height)).toBe(true)
+  })
 })

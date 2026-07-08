@@ -80,25 +80,35 @@ export default function ImageCard({ item }: { item: ImageItem }) {
         {result ? (
           <div
             data-result-url={result.url}
-            className="mt-1 flex items-center justify-between text-xs"
+            className="mt-1 flex flex-col gap-0.5 text-xs"
           >
-            <span data-testid="output-size" className="text-slate-300">
-              → {formatBytes(result.outputBytes)}
-            </span>
+            <div className="flex items-center justify-between">
+              <span data-testid="output-size" className="text-slate-300">
+                → {formatBytes(result.outputBytes)}
+              </span>
+              <span
+                data-testid="savings"
+                data-savings={savings}
+                className={
+                  savings > 0
+                    ? 'font-medium text-emerald-300'
+                    : 'font-medium text-rose-300'
+                }
+              >
+                {savings > 0
+                  ? `−${savings}% smaller`
+                  : savings === 0
+                    ? 'No savings'
+                    : `+${Math.abs(savings)}% larger`}
+              </span>
+            </div>
             <span
-              data-testid="savings"
-              data-savings={savings}
-              className={
-                savings > 0
-                  ? 'font-medium text-emerald-300'
-                  : 'font-medium text-rose-300'
-              }
+              data-testid="output-dimensions"
+              data-width={result.width}
+              data-height={result.height}
+              className="text-slate-400"
             >
-              {savings > 0
-                ? `−${savings}% smaller`
-                : savings === 0
-                  ? 'No savings'
-                  : `+${Math.abs(savings)}% larger`}
+              {result.width} × {result.height} px
             </span>
           </div>
         ) : null}

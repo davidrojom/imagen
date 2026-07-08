@@ -101,6 +101,34 @@ describe('ImageCard', () => {
     expect(savings).toHaveTextContent('75')
   })
 
+  it('reports the output dimensions from the result when done', () => {
+    const item = seedItem({
+      status: 'done',
+      originalWidth: 4000,
+      originalHeight: 2250,
+      result: {
+        blob: new Blob(['out']),
+        url: 'blob:out',
+        outputType: 'image/webp',
+        outputBytes: 512,
+        width: 800,
+        height: 450,
+        outputName: 'photo.webp',
+      },
+    })
+    render(<ImageCard item={item} />)
+    const outDims = screen.getByTestId('output-dimensions')
+    expect(outDims).toHaveAttribute('data-width', '800')
+    expect(outDims).toHaveAttribute('data-height', '450')
+    expect(outDims).toHaveTextContent(/800\s*[×x]\s*450/)
+  })
+
+  it('does not show output dimensions before the item is done', () => {
+    const item = seedItem({ status: 'queued' })
+    render(<ImageCard item={item} />)
+    expect(screen.queryByTestId('output-dimensions')).not.toBeInTheDocument()
+  })
+
   it('does not show misleading positive savings when the output did not shrink', () => {
     const item = seedItem({
       status: 'done',
