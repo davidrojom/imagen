@@ -98,6 +98,14 @@ describe('BatchToolbar Optimize all + progress', () => {
     expect(screen.getByRole('button', { name: /optimize all/i })).toBeDisabled()
   })
 
+  it('disables the format and quality controls while a batch is processing', () => {
+    seedItem({ status: 'processing' })
+    useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    expect(screen.getByTestId('format-select')).toBeDisabled()
+    expect(screen.getByTestId('quality-slider')).toBeDisabled()
+  })
+
   it('shows a batch progress indicator with completed/total that reaches complete', () => {
     seedItem({ status: 'done' })
     useImagenStore.setState({ batch: { status: 'processing', total: 4, completed: 1 } })

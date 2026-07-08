@@ -4,6 +4,7 @@ import type { ImagenState } from '../store/useImagenStore'
 import { useImagenStore } from '../store/useImagenStore'
 import { resolveSettings } from '../lib/settings'
 import { uniqueOutputName } from '../lib/filenames'
+import type { EncodeSettings } from '../types'
 
 export interface OptimizerLike {
   optimizeAll: () => void
@@ -24,6 +25,7 @@ export interface OptimizerOptions {
 export class Optimizer implements OptimizerLike {
   private readonly store: StoreApi
   private readonly pool: CodecPool
+  private readonly snapshots = new Map<string, EncodeSettings>()
 
   constructor(options: OptimizerOptions) {
     this.store = options.store
@@ -33,12 +35,12 @@ export class Optimizer implements OptimizerLike {
       getInput: (id) => this.getInput(id),
       onStart: (id) => this.store.getState().markProcessing(id),
       onDone: (id, result) => this.handleDone(id, result),
-      onError: (id, message) => this.store.getState().markError(id, message),
+      onError: (id, message) => this.handleError(id, message),
     })
 
     this.store.subscribe((state, prev) => {
       if (prev.images.length > 0 && state.images.length === 0) {
-        this.pool.clear()
+        this.clear()
       }
     })
   }
@@ -47,19 +49,31 @@ export class Optimizer implements OptimizerLike {
     const state = this.store.getState()
     const ids = state.images.map((item) => item.id)
     if (ids.length === 0) return
+    for (const item of state.images) {
+      this.snapshots.set(item.id, resolveSettings(item.settings, state.globalSettings))
+    }
     state.startProcessing()
     this.pool.processMany(ids)
   }
 
   clear(): void {
+    this.snapshots.clear()
     this.pool.clear()
+  }
+
+  private snapshotFor(id: string): EncodeSettings {
+    const snapshot = this.snapshots.get(id)
+    if (snapshot) return snapshot
+    const state = this.store.getState()
+    const item = state.images.find((entry) => entry.id === id)
+    return resolveSettings(item?.settings ?? null, state.globalSettings)
   }
 
   private async getInput(id: string): Promise<ProcessInput> {
     const state = this.store.getState()
     const item = state.images.find((entry) => entry.id === id)
     if (!item) throw new Error('Image no longer present')
-    const settings = resolveSettings(item.settings, state.globalSettings)
+    const settings = this.snapshotFor(id)
     const buffer = await item.file.arrayBuffer()
     return { buffer, sourceType: item.sourceType, settings }
   }
@@ -67,8 +81,11 @@ export class Optimizer implements OptimizerLike {
   private handleDone(id: string, result: ProcessResult): void {
     const state = this.store.getState()
     const item = state.images.find((entry) => entry.id === id)
-    if (!item) return
-    const settings = resolveSettings(item.settings, state.globalSettings)
+    if (!item) {
+      this.snapshots.delete(id)
+      return
+    }
+    const settings = this.snapshotFor(id)
     const blob = new Blob([result.buffer], { type: result.outputType })
     const url = URL.createObjectURL(blob)
     const takenNames = state.images
@@ -83,6 +100,12 @@ export class Optimizer implements OptimizerLike {
       height: result.height,
       outputName: uniqueOutputName(item.name, settings.format, takenNames),
     })
+    this.snapshots.delete(id)
+  }
+
+  private handleError(id: string, message: string): void {
+    this.snapshots.delete(id)
+    this.store.getState().markError(id, message)
   }
 }
 

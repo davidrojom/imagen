@@ -129,6 +129,37 @@ describe('Optimizer', () => {
     expect(overridden.result!.outputType).toBe('image/avif')
   })
 
+  it('snapshots effective settings at enqueue so a mid-batch global format change does not alter enqueued outputs', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    seed(['a.png', 'b.png', 'c.png'])
+
+    optimizer.optimizeAll()
+    useImagenStore.getState().setGlobalSettings({ format: 'avif' })
+    await runToSettled()
+
+    expect(fake.calls.every((c) => c.settings.format === 'webp')).toBe(true)
+    const state = useImagenStore.getState()
+    expect(state.images.every((i) => i.result!.outputType === 'image/webp')).toBe(true)
+    expect(state.images.every((i) => i.result!.outputName.endsWith('.webp'))).toBe(true)
+  })
+
+  it("keeps a done item's output type/extension matching the settings it was encoded with despite mid-batch changes", async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const [id1] = seed(['a.png', 'b.png'])
+    useImagenStore.getState().setImageSettings(id1, { format: 'avif' })
+
+    optimizer.optimizeAll()
+    useImagenStore.getState().setImageSettings(id1, { format: 'jxl' })
+    useImagenStore.getState().setGlobalSettings({ format: 'oxipng' })
+    await runToSettled()
+
+    const overridden = useImagenStore.getState().images.find((i) => i.id === id1)!
+    expect(overridden.result!.outputType).toBe('image/avif')
+    expect(overridden.result!.outputName).toBe('a.avif')
+  })
+
   it('produces smaller output at lower quality (quality is wired through)', async () => {
     const fake = new FakeWorkers()
     fake.bytesFor = (input) => (input.settings.quality ?? 0) * 10

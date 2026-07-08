@@ -27,10 +27,11 @@ export default function BatchToolbar({
           <select
             data-testid="format-select"
             value={format}
+            disabled={processing}
             onChange={(event) =>
               setGlobalSettings({ format: event.target.value as OutputFormat })
             }
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100"
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {FORMAT_IDS.map((id) => (
               <option key={id} value={id}>
@@ -51,8 +52,9 @@ export default function BatchToolbar({
               min={spec.quality.min}
               max={spec.quality.max}
               value={quality ?? spec.quality.default}
+              disabled={processing}
               onChange={(event) => setGlobalSettings({ quality: Number(event.target.value) })}
-              className="accent-sky-400"
+              className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </label>
         ) : null}

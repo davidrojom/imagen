@@ -103,26 +103,42 @@ export const useImagenStore = create<ImagenState>()((set) => ({
 
   startProcessing: () =>
     set((state) => ({
+      images: state.images.map((item) => ({
+        ...item,
+        status: 'queued' as const,
+        progress: undefined,
+        error: undefined,
+      })),
       batch: { status: 'processing', total: state.images.length, completed: 0 },
     })),
 
   markProcessing: (id) =>
-    set((state) => ({
-      images: state.images.map((item) =>
-        item.id === id ? { ...item, status: 'processing' as const, progress: 0, error: undefined } : item,
-      ),
-    })),
+    set((state) => {
+      const item = state.images.find((entry) => entry.id === id)
+      if (!item || item.status === 'done' || item.status === 'error') return {}
+      return {
+        images: state.images.map((entry) =>
+          entry.id === id
+            ? { ...entry, status: 'processing' as const, progress: 0, error: undefined }
+            : entry,
+        ),
+      }
+    }),
 
   markDone: (id, result) =>
     set((state) => {
       const previous = state.images.find((item) => item.id === id)
-      if (previous?.result?.url && previous.result.url !== result.url) {
+      if (!previous || previous.status === 'done' || previous.status === 'error') return {}
+      if (previous.result?.url && previous.result.url !== result.url) {
         revokeUrl(previous.result.url)
       }
       const images = state.images.map((item) =>
         item.id === id ? { ...item, status: 'done' as const, progress: 1, result, error: undefined } : item,
       )
-      const completed = state.batch.completed + 1
+      const completed =
+        state.batch.total > 0
+          ? Math.min(state.batch.total, state.batch.completed + 1)
+          : state.batch.completed + 1
       const status =
         state.batch.total > 0 && completed >= state.batch.total ? 'done' : state.batch.status
       return { images, batch: { ...state.batch, completed, status } }
@@ -130,10 +146,15 @@ export const useImagenStore = create<ImagenState>()((set) => ({
 
   markError: (id, message) =>
     set((state) => {
+      const previous = state.images.find((item) => item.id === id)
+      if (!previous || previous.status === 'done' || previous.status === 'error') return {}
       const images = state.images.map((item) =>
         item.id === id ? { ...item, status: 'error' as const, error: message } : item,
       )
-      const completed = state.batch.completed + 1
+      const completed =
+        state.batch.total > 0
+          ? Math.min(state.batch.total, state.batch.completed + 1)
+          : state.batch.completed + 1
       const status =
         state.batch.total > 0 && completed >= state.batch.total ? 'done' : state.batch.status
       return { images, batch: { ...state.batch, completed, status } }

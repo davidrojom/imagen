@@ -186,7 +186,97 @@ describe('worker-callback reducers and batch progress', () => {
   it('re-optimizing a done item revokes the previous result URL', () => {
     const [id] = seedTwo()
     useImagenStore.getState().markDone(id, fakeResult)
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markProcessing(id)
     useImagenStore.getState().markDone(id, { ...fakeResult, url: 'blob:out-2' })
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:out')
+  })
+
+  it('startProcessing re-arms items to queued (retaining prior results) so they can be re-processed', () => {
+    const [id] = seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markProcessing(id)
+    useImagenStore.getState().markDone(id, fakeResult)
+    expect(useImagenStore.getState().images[0].status).toBe('done')
+
+    useImagenStore.getState().startProcessing()
+    const item = useImagenStore.getState().images[0]
+    expect(item.status).toBe('queued')
+    expect(item.result).toBeDefined()
+    expect(useImagenStore.getState().batch.completed).toBe(0)
+  })
+})
+
+describe('reducer idempotency and unknown-id guards', () => {
+  function seedTwo() {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    return useImagenStore.getState().images.map((i) => i.id)
+  }
+
+  const fakeResult = {
+    blob: new Blob(['out']),
+    url: 'blob:out',
+    outputType: 'image/webp',
+    outputBytes: 250,
+    width: 100,
+    height: 100,
+    outputName: 'a.webp',
+  }
+
+  it('markProcessing is a no-op for an unknown id', () => {
+    seedTwo()
+    useImagenStore.getState().markProcessing('missing')
+    expect(useImagenStore.getState().images.map((i) => i.status)).toEqual(['queued', 'queued'])
+  })
+
+  it('markDone is a no-op for an unknown id and does not advance batch.completed', () => {
+    seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markDone('missing', fakeResult)
+    expect(useImagenStore.getState().batch.completed).toBe(0)
+    expect(useImagenStore.getState().images.every((i) => i.result == null)).toBe(true)
+  })
+
+  it('markError is a no-op for an unknown id and does not advance batch.completed', () => {
+    seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markError('missing', 'boom')
+    expect(useImagenStore.getState().batch.completed).toBe(0)
+    expect(useImagenStore.getState().images.every((i) => i.status === 'queued')).toBe(true)
+  })
+
+  it('markDone is idempotent for an already-done item (does not double-count)', () => {
+    const [id1] = seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markProcessing(id1)
+    useImagenStore.getState().markDone(id1, fakeResult)
+    expect(useImagenStore.getState().batch.completed).toBe(1)
+    useImagenStore.getState().markDone(id1, { ...fakeResult, url: 'blob:dup' })
+    expect(useImagenStore.getState().batch.completed).toBe(1)
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:out')
+  })
+
+  it('markError is idempotent for a terminal item and does not overwrite a done result', () => {
+    const [id1] = seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markProcessing(id1)
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().markError(id1, 'late error')
+    expect(useImagenStore.getState().images[0].status).toBe('done')
+    expect(useImagenStore.getState().batch.completed).toBe(1)
+  })
+
+  it('batch.completed never exceeds total under duplicate/stale callbacks', () => {
+    const [id1, id2] = seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().markDone(id2, { ...fakeResult, url: 'blob:out-b' })
+    useImagenStore.getState().markDone(id1, { ...fakeResult, url: 'blob:out-dup' })
+    useImagenStore.getState().markError(id2, 'stale')
+    const { batch } = useImagenStore.getState()
+    expect(batch.completed).toBe(2)
+    expect(batch.completed).toBeLessThanOrEqual(batch.total)
+    expect(batch.status).toBe('done')
   })
 })
