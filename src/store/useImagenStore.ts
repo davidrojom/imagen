@@ -177,3 +177,9 @@ export const selectEffectiveSettings =
 
 export const selectBatchProgress = (state: ImagenState): number =>
   state.batch.total === 0 ? 0 : state.batch.completed / state.batch.total
+
+export const selectDoneCount = (state: ImagenState): number =>
+  state.images.reduce(
+    (count, item) => (item.status === 'done' && item.result ? count + 1 : count),
+    0,
+  )

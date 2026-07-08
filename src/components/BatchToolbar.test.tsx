@@ -1,10 +1,17 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BatchToolbar from './BatchToolbar'
 import { useImagenStore } from '../store/useImagenStore'
 import { defaultEncodeSettings } from '../lib/settings'
-import type { ImageItem } from '../types'
+import type { ImageItem, ImageResult } from '../types'
 import type { OptimizerLike } from '../codec/optimizer'
+
+const downloadImagesZip = vi.fn<(items: Iterable<ImageItem>) => Promise<void>>(() =>
+  Promise.resolve(),
+)
+vi.mock('../lib/zip', () => ({
+  downloadImagesZip: (items: Iterable<ImageItem>) => downloadImagesZip(items),
+}))
 
 function resetStore(): void {
   useImagenStore.setState({
@@ -30,6 +37,18 @@ function seedItem(overrides: Partial<ImageItem> = {}): void {
   useImagenStore.setState({ images: [item] })
 }
 
+function doneResult(name: string): ImageResult {
+  return {
+    blob: new Blob(['x']),
+    url: 'blob:out',
+    outputType: 'image/webp',
+    outputBytes: 1,
+    width: 1,
+    height: 1,
+    outputName: name,
+  }
+}
+
 function fakeOptimizer() {
   const optimizer: OptimizerLike = { optimizeAll: vi.fn(), clear: vi.fn() }
   return optimizer as OptimizerLike & { optimizeAll: ReturnType<typeof vi.fn> }
@@ -38,6 +57,7 @@ function fakeOptimizer() {
 beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:mock')
   URL.revokeObjectURL = vi.fn()
+  downloadImagesZip.mockClear()
   resetStore()
 })
 
@@ -73,5 +93,59 @@ describe('BatchToolbar Optimize all + progress', () => {
     const done = screen.getByTestId('batch-progress')
     expect(done).toHaveAttribute('aria-valuenow', '4')
     expect(done).toHaveTextContent(/4\s*\/\s*4|complete/i)
+  })
+})
+
+describe('BatchToolbar Download all as ZIP', () => {
+  it('disables the ZIP action when no item is done', () => {
+    seedItem({ status: 'queued' })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    expect(screen.getByRole('button', { name: /download all as zip/i })).toBeDisabled()
+  })
+
+  it('disables the ZIP action while items are only processing', () => {
+    seedItem({ status: 'processing' })
+    useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    expect(screen.getByRole('button', { name: /download all as zip/i })).toBeDisabled()
+  })
+
+  it('enables the ZIP action once at least one item is done', () => {
+    seedItem({ status: 'done', result: doneResult('photo.webp') })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    expect(screen.getByRole('button', { name: /download all as zip/i })).toBeEnabled()
+  })
+
+  it('builds a ZIP from the current done items when clicked', async () => {
+    useImagenStore.setState({
+      images: [
+        {
+          id: 'a',
+          file: new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+          name: 'a.jpg',
+          sourceType: 'image/jpeg',
+          originalBytes: 10,
+          previewUrl: 'blob:a',
+          settings: null,
+          status: 'done',
+          result: doneResult('a.webp'),
+        },
+        {
+          id: 'b',
+          file: new File(['b'], 'b.jpg', { type: 'image/jpeg' }),
+          name: 'b.jpg',
+          sourceType: 'image/jpeg',
+          originalBytes: 10,
+          previewUrl: 'blob:b',
+          settings: null,
+          status: 'queued',
+        },
+      ],
+    })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    fireEvent.click(screen.getByRole('button', { name: /download all as zip/i }))
+    await waitFor(() => expect(downloadImagesZip).toHaveBeenCalledTimes(1))
+    const passed = Array.from(downloadImagesZip.mock.calls[0][0] as Iterable<ImageItem>)
+    expect(passed.map((item) => item.id)).toEqual(['a', 'b'])
   })
 })
