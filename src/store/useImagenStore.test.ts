@@ -44,6 +44,20 @@ describe('addFiles', () => {
   })
 })
 
+describe('setImageDimensions', () => {
+  it('stores the width and height on the matching item only', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    const [id1, id2] = useImagenStore.getState().images.map((i) => i.id)
+    useImagenStore.getState().setImageDimensions(id1, 800, 600)
+    const [first, second] = useImagenStore.getState().images
+    expect(first.originalWidth).toBe(800)
+    expect(first.originalHeight).toBe(600)
+    expect(second.id).toBe(id2)
+    expect(second.originalWidth).toBeUndefined()
+  })
+})
+
 describe('removeImage / clearAll', () => {
   it('removes a single image and revokes its object URL', () => {
     const { addFiles } = useImagenStore.getState()

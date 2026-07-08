@@ -15,6 +15,7 @@ export interface ImagenState {
   batch: BatchState
 
   addFiles: (files: Iterable<File>) => void
+  setImageDimensions: (id: string, width: number, height: number) => void
   removeImage: (id: string) => void
   clearAll: () => void
   setGlobalSettings: (patch: Partial<EncodeSettings>) => void
@@ -61,6 +62,13 @@ export const useImagenStore = create<ImagenState>()((set) => ({
       }))
       return { images: [...state.images, ...added] }
     }),
+
+  setImageDimensions: (id, width, height) =>
+    set((state) => ({
+      images: state.images.map((item) =>
+        item.id === id ? { ...item, originalWidth: width, originalHeight: height } : item,
+      ),
+    })),
 
   removeImage: (id) =>
     set((state) => {
