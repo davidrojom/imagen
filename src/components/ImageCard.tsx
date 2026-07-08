@@ -13,6 +13,7 @@ const STATUS_META: Record<ImageStatus, { label: string; className: string }> = {
 export default function ImageCard({ item }: { item: ImageItem }) {
   const removeImage = useImagenStore((state) => state.removeImage)
   const setImageDimensions = useImagenStore((state) => state.setImageDimensions)
+  const select = useImagenStore((state) => state.select)
 
   const hasDimensions = item.originalWidth != null && item.originalHeight != null
   const status = STATUS_META[item.status]
@@ -125,14 +126,25 @@ export default function ImageCard({ item }: { item: ImageItem }) {
           </div>
         ) : null}
         {result ? (
-          <a
-            data-testid="download-link"
-            href={result.url}
-            download={result.outputName}
-            className="mt-2 inline-flex w-fit items-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sky-400"
-          >
-            Download {result.outputName}
-          </a>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              data-testid="compare-button"
+              aria-label={`Compare ${item.name}`}
+              onClick={() => select(item.id)}
+              className="inline-flex w-fit items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
+            >
+              Compare
+            </button>
+            <a
+              data-testid="download-link"
+              href={result.url}
+              download={result.outputName}
+              className="inline-flex w-fit items-center gap-1 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-sky-400"
+            >
+              Download {result.outputName}
+            </a>
+          </div>
         ) : null}
         <PerImageSettings item={item} />
       </div>

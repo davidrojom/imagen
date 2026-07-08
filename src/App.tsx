@@ -4,6 +4,7 @@ import ImageGrid from './components/ImageGrid'
 import SettingsPanel from './components/SettingsPanel'
 import ResizeControls from './components/ResizeControls'
 import BatchToolbar from './components/BatchToolbar'
+import CompareSlider from './components/CompareSlider'
 import { useImagenStore } from './store/useImagenStore'
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
             <SettingsPanel />
             <ResizeControls />
             <BatchToolbar />
+            <CompareSlider />
             <ImageGrid />
           </>
         ) : null}

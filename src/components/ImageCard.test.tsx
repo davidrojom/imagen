@@ -191,6 +191,30 @@ describe('ImageCard', () => {
     expect(screen.queryByTestId('download-link')).not.toBeInTheDocument()
   })
 
+  it('opens the compare view by selecting the item when its compare control is activated', () => {
+    const item = seedItem({
+      status: 'done',
+      result: {
+        blob: new Blob(['out']),
+        url: 'blob:out',
+        outputType: 'image/webp',
+        outputBytes: 512,
+        width: 800,
+        height: 600,
+        outputName: 'photo.webp',
+      },
+    })
+    render(<ImageCard item={item} />)
+    fireEvent.click(screen.getByTestId('compare-button'))
+    expect(useImagenStore.getState().selectedId).toBe(item.id)
+  })
+
+  it('does not render a compare control before the item is done', () => {
+    const item = seedItem({ status: 'processing' })
+    render(<ImageCard item={item} />)
+    expect(screen.queryByTestId('compare-button')).not.toBeInTheDocument()
+  })
+
   it('shows an override indicator when the item carries per-image settings', () => {
     const item = seedItem({ settings: defaultEncodeSettings('avif') })
     render(<ImageCard item={item} />)
