@@ -56,6 +56,16 @@ export class Optimizer implements OptimizerLike {
     this.pool.processMany(ids)
   }
 
+  optimizeOne(id: string): void {
+    const state = this.store.getState()
+    if (state.batch.status === 'processing') return
+    const item = state.images.find((entry) => entry.id === id)
+    if (!item) return
+    this.snapshots.set(id, resolveSettings(item.settings, state.globalSettings))
+    state.startProcessingSingle(id)
+    this.pool.processMany([id])
+  }
+
   clear(): void {
     this.snapshots.clear()
     this.pool.clear()

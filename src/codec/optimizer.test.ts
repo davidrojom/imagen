@@ -224,6 +224,62 @@ describe('Optimizer', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith(firstUrl)
   })
 
+  it('optimizeOne re-encodes only the targeted item with its current effective settings', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 2 })
+    const [id1, id2] = seed(['a.png', 'b.png'])
+
+    optimizer.optimizeAll()
+    await runToSettled()
+    const firstUrl = useImagenStore.getState().images.find((i) => i.id === id1)!.result!.url
+    const otherUrl = useImagenStore.getState().images.find((i) => i.id === id2)!.result!.url
+    const callsBefore = fake.calls.length
+
+    useImagenStore.getState().setImageSettings(id1, { format: 'avif' })
+    optimizer.optimizeOne(id1)
+    await runToSettled()
+
+    const state = useImagenStore.getState()
+    const first = state.images.find((i) => i.id === id1)!
+    const second = state.images.find((i) => i.id === id2)!
+    expect(fake.calls).toHaveLength(callsBefore + 1)
+    expect(fake.calls.at(-1)!.settings.format).toBe('avif')
+    expect(first.status).toBe('done')
+    expect(first.result!.outputType).toBe('image/avif')
+    expect(first.result!.outputName).toBe('a.avif')
+    expect(first.result!.url).not.toBe(firstUrl)
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith(firstUrl)
+    expect(second.result!.url).toBe(otherUrl)
+    expect(state.batch).toMatchObject({ status: 'done', total: 1, completed: 1 })
+  })
+
+  it('optimizeOne processes a never-encoded item on demand', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const [id] = seed(['a.png'])
+
+    optimizer.optimizeOne(id)
+    await runToSettled()
+
+    const state = useImagenStore.getState()
+    expect(state.images[0].status).toBe('done')
+    expect(state.images[0].result).toBeDefined()
+    expect(state.batch).toMatchObject({ status: 'done', total: 1, completed: 1 })
+  })
+
+  it('optimizeOne is a no-op while a batch is processing', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const ids = seed(['a.png', 'b.png'])
+
+    optimizer.optimizeAll()
+    optimizer.optimizeOne(ids[0])
+    await runToSettled()
+
+    expect(fake.calls).toHaveLength(2)
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
   it('clearing the store mid-batch stops the pool and lets a fresh batch complete', async () => {
     const fake = new FakeWorkers()
     const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 2 })

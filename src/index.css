@@ -1,1 +1,306 @@
-@import "tailwindcss";
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+
+  /* Warm near-black neutrals, one hue family (~84) */
+  --color-canvas: oklch(16.5% 0.005 84);
+  --color-well: oklch(14% 0.005 84);
+  --color-ink: oklch(95% 0.007 84);
+  --color-ink-dim: oklch(73% 0.01 84);
+  --color-ink-faint: oklch(55% 0.011 84);
+
+  /* Single accent: ember */
+  --color-ember: oklch(80% 0.125 72);
+  --color-ember-deep: oklch(70% 0.13 62);
+
+  /* Semantic, desaturated */
+  --color-moss: oklch(84% 0.1 152);
+  --color-clay: oklch(78% 0.1 26);
+
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-rise: rise 0.8s var(--ease-soft) both;
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-breathe: breathe 2.4s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.35s var(--ease-soft) both;
+  --animate-pop: pop 0.45s var(--ease-soft) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+      filter: blur(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-feature-settings: 'cv11' 1;
+  }
+
+  /* Ambient light — one warm source, top center */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        60rem 32rem at 50% -12rem,
+        color-mix(in oklab, var(--color-ember) 9%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        44rem 30rem at 88% 110%,
+        color-mix(in oklab, var(--color-ember-deep) 5%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Film grain to break digital flatness */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-ember) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-ember) 75%, transparent);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/* Text/number inputs and selects — a utility so it can be composed via @apply */
+@utility control {
+  @apply h-9 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 text-sm text-ink transition-colors duration-200 placeholder:text-ink-faint hover:border-white/[0.16] focus:border-white/[0.24] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+@layer components {
+  /* Eyebrow field label */
+  .label {
+    @apply text-[10px] font-medium tracking-[0.16em] uppercase text-ink-faint;
+  }
+
+  .control-select {
+    @apply control cursor-pointer appearance-none pr-9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23918e86' stroke-width='1.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+    background-position: right 0.65rem center;
+    background-repeat: no-repeat;
+  }
+
+  .control[type='number']::-webkit-outer-spin-button,
+  .control[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .control[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2.5 rounded-full bg-ink pr-2 pl-5 text-sm font-semibold text-well transition-all duration-300 ease-fluid select-none hover:bg-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-ink;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.9),
+      0 10px 30px -12px rgb(0 0 0 / 0.9);
+  }
+
+  .btn-primary-orb {
+    @apply flex size-7 items-center justify-center rounded-full bg-black/[0.08] transition-transform duration-300 ease-fluid;
+  }
+  .btn-primary:hover .btn-primary-orb {
+    transform: translateX(2px);
+  }
+
+  .btn-ghost {
+    @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.03] px-5 text-sm font-medium text-ink transition-all duration-300 ease-fluid select-none hover:border-white/[0.2] hover:bg-white/[0.07] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/[0.1] disabled:hover:bg-white/[0.03];
+  }
+
+  .btn-quiet {
+    @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-ink-dim transition-colors duration-200 select-none hover:bg-white/[0.06] hover:text-ink disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  /* Chips */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] tracking-[0.12em] uppercase text-ink-faint;
+  }
+
+  /* Range sliders */
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .slider:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  .slider::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.12);
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    margin-top: -5.5px;
+    height: 14px;
+    width: 14px;
+    border-radius: 999px;
+    background: var(--color-ink);
+    box-shadow:
+      0 1px 5px rgb(0 0 0 / 0.6),
+      inset 0 1px 0 rgb(255 255 255 / 0.9);
+    transition: transform 0.25s var(--ease-fluid);
+  }
+  .slider:hover::-webkit-slider-thumb {
+    transform: scale(1.2);
+  }
+  .slider:active::-webkit-slider-thumb {
+    transform: scale(0.95);
+  }
+  .slider::-moz-range-track {
+    height: 3px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.12);
+  }
+  .slider::-moz-range-thumb {
+    height: 14px;
+    width: 14px;
+    border: none;
+    border-radius: 999px;
+    background: var(--color-ink);
+    box-shadow:
+      0 1px 5px rgb(0 0 0 / 0.6),
+      inset 0 1px 0 rgb(255 255 255 / 0.9);
+    transition: transform 0.25s var(--ease-fluid);
+  }
+  .slider:hover::-moz-range-thumb {
+    transform: scale(1.2);
+  }
+
+  /* Checkbox */
+  .checkbox {
+    @apply size-4 cursor-pointer appearance-none rounded-[5px] border border-white/[0.16] bg-white/[0.04] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .checkbox:hover {
+    border-color: rgb(255 255 255 / 0.3);
+  }
+  .checkbox:checked {
+    background-color: var(--color-ink);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23141310' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 8.5 2.5 2.5L12 5.5'/%3E%3C/svg%3E");
+    background-position: center;
+    background-repeat: no-repeat;
+    border-color: transparent;
+  }
+
+  /* Transparency checkerboard for image surfaces */
+  .checker {
+    background-color: var(--color-well);
+    background-image: conic-gradient(
+      rgb(255 255 255 / 0.035) 90deg,
+      transparent 90deg 180deg,
+      rgb(255 255 255 / 0.035) 180deg 270deg,
+      transparent 270deg
+    );
+    background-size: 18px 18px;
+  }
+
+  /* Double-bezel shells */
+  .bezel {
+    @apply rounded-[1.75rem] bg-white/[0.03] p-1.5 ring-1 ring-white/[0.07];
+    box-shadow:
+      0 30px 80px -40px rgb(0 0 0 / 0.85),
+      inset 0 1px 0 rgb(255 255 255 / 0.05);
+  }
+  .bezel-core {
+    @apply rounded-[calc(1.75rem-0.375rem)];
+  }
+}

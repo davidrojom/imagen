@@ -1,13 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useImagenStore } from '../store/useImagenStore'
 import { FORMAT_IDS, getFormatSpec } from '../codec/formats'
+import { getOptimizer } from '../codec/optimizer'
+import ResizeHint from './ResizeHint'
 import type { EncodeSettings, ImageItem, OutputFormat, ResizeSettings } from '../types'
 
 const MODE_OPTIONS: { value: ResizeSettings['mode']; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'dimensions', label: 'Fit to dimensions' },
-  { value: 'percentage', label: 'Percentage' },
+  { value: 'none', label: 'Keep original size' },
+  { value: 'dimensions', label: 'Fit within dimensions' },
+  { value: 'percentage', label: 'Scale by percentage' },
 ]
+
+export interface PerImageOptimizer {
+  optimizeOne: (id: string) => void
+}
 
 function parseDimension(raw: string): number | undefined {
   if (raw.trim() === '') return undefined
@@ -15,7 +21,50 @@ function parseDimension(raw: string): number | undefined {
   return Number.isFinite(value) && value > 0 ? value : undefined
 }
 
-export default function PerImageSettings({ item }: { item: ImageItem }) {
+function ChevronGlyph({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`transition-transform duration-300 ease-fluid ${open ? 'rotate-180' : ''}`}
+    >
+      <path d="m4.5 6.5 3.5 3.5 3.5-3.5" />
+    </svg>
+  )
+}
+
+function BoltGlyph() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8.75 1.75 3.5 9h3.75l-.5 5.25L12.5 7H8.75l.5-5.25Z" />
+    </svg>
+  )
+}
+
+export default function PerImageSettings({
+  item,
+  optimizer = getOptimizer(),
+}: {
+  item: ImageItem
+  optimizer?: PerImageOptimizer
+}) {
   const globalSettings = useImagenStore((state) => state.globalSettings)
   const override = useImagenStore(
     (state) => state.images.find((entry) => entry.id === item.id)?.settings ?? null,
@@ -23,6 +72,31 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
   const setImageSettings = useImagenStore((state) => state.setImageSettings)
   const processing = useImagenStore((state) => state.batch.status === 'processing')
   const [expanded, setExpanded] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+
+  // Popover dismissal: pointer down outside, or Escape (returning focus to the toggle)
+  useEffect(() => {
+    if (!expanded) return
+    const onPointerDown = (event: PointerEvent) => {
+      const el = containerRef.current
+      if (el && event.target instanceof Node && !el.contains(event.target)) {
+        setExpanded(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setExpanded(false)
+        toggleRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [expanded])
 
   const isOverridden = override != null
   const effective: EncodeSettings = override ?? globalSettings
@@ -46,30 +120,60 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
     }
   }
 
+  const onApply = () => {
+    optimizer.optimizeOne(item.id)
+    setExpanded(false)
+  }
+
   return (
-    <div data-testid="per-image-settings" className="mt-2 flex flex-col gap-2">
+    <div ref={containerRef} data-testid="per-image-settings" className="relative">
       <button
+        ref={toggleRef}
         type="button"
         data-testid="override-edit-toggle"
         aria-expanded={expanded}
+        aria-haspopup="dialog"
         aria-label={`Edit settings for ${item.name}`}
         disabled={processing}
         onClick={() => setExpanded((value) => !value)}
-        className="inline-flex w-fit items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        className="btn-quiet -mx-2 w-fit"
       >
-        {expanded ? 'Hide settings' : isOverridden ? 'Edit custom settings' : 'Customize settings'}
+        {isOverridden ? (
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-ember" />
+        ) : null}
+        {expanded ? 'Hide settings' : isOverridden ? 'Custom settings' : 'Customize settings'}
+        <ChevronGlyph open={expanded} />
       </button>
 
       {expanded ? (
-        <div className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
-            Output format
+        <div
+          role="dialog"
+          aria-label={`Settings for ${item.name}`}
+          className="popover-open absolute bottom-full left-0 z-30 mb-2 flex w-72 max-w-[calc(100vw-3rem)] animate-pop flex-col gap-4 rounded-2xl bg-well p-4 shadow-[0_30px_70px_-25px_rgb(0_0_0/0.95),inset_0_1px_0_rgb(255_255_255/0.06)] ring-1 ring-white/[0.12]"
+        >
+          <div className="flex h-5 items-center justify-between">
+            <span className="label">This image only</span>
+            {isOverridden ? (
+              <button
+                type="button"
+                data-testid="override-reset"
+                disabled={processing}
+                onClick={() => setImageSettings(item.id, null)}
+                className="cursor-pointer rounded-md px-1.5 py-0.5 text-[11px] font-medium text-ink-faint transition-colors duration-200 hover:bg-white/[0.06] hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Reset to global
+              </button>
+            ) : null}
+          </div>
+
+          <label className="flex flex-col gap-2">
+            <span className="label">Output format</span>
             <select
               data-testid="override-format-select"
               value={effective.format}
               disabled={processing}
               onChange={(event) => update({ format: event.target.value as OutputFormat })}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="control-select h-8 text-xs"
             >
               {FORMAT_IDS.map((id) => (
                 <option key={id} value={id}>
@@ -80,10 +184,10 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
           </label>
 
           {showQuality && spec.quality ? (
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
-              <span>
-                Quality:{' '}
-                <span data-testid="override-quality-value">
+            <label className="flex flex-col gap-1">
+              <span className="label flex items-baseline justify-between">
+                Quality
+                <span data-testid="override-quality-value" className="font-mono text-[11px] text-ink">
                   {effective.quality ?? spec.quality.default}
                 </span>
               </span>
@@ -95,16 +199,16 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
                 value={effective.quality ?? spec.quality.default}
                 disabled={processing}
                 onChange={(event) => update({ quality: Number(event.target.value) })}
-                className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="slider"
               />
             </label>
           ) : null}
 
           {showLevel && spec.effort ? (
-            <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
-              <span>
-                Optimization level:{' '}
-                <span data-testid="override-level-value">
+            <label className="flex flex-col gap-1">
+              <span className="label flex items-baseline justify-between">
+                Optimization level
+                <span data-testid="override-level-value" className="font-mono text-[11px] text-ink">
                   {effective.effort ?? spec.effort.default}
                 </span>
               </span>
@@ -116,19 +220,19 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
                 value={effective.effort ?? spec.effort.default}
                 disabled={processing}
                 onChange={(event) => update({ effort: Number(event.target.value) })}
-                className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="slider"
               />
             </label>
           ) : null}
 
-          <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
-            Resize
+          <label className="flex flex-col gap-2">
+            <span className="label">Resize</span>
             <select
               data-testid="override-resize-mode"
               value={resize.mode}
               disabled={processing}
               onChange={(event) => onModeChange(event.target.value as ResizeSettings['mode'])}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="control-select h-8 text-xs"
             >
               {MODE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -140,8 +244,8 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
 
           {resize.mode === 'dimensions' ? (
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex w-20 flex-col gap-1 text-xs font-medium text-slate-300">
-                Max width
+              <label className="flex w-20 flex-col gap-2">
+                <span className="label">Width (px)</span>
                 <input
                   data-testid="override-resize-width"
                   type="number"
@@ -152,11 +256,11 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
                   value={resize.width ?? ''}
                   disabled={processing}
                   onChange={(event) => updateResize({ width: parseDimension(event.target.value) })}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="control h-8 px-2.5 font-mono text-xs"
                 />
               </label>
-              <label className="flex w-20 flex-col gap-1 text-xs font-medium text-slate-300">
-                Max height
+              <label className="flex w-20 flex-col gap-2">
+                <span className="label">Height (px)</span>
                 <input
                   data-testid="override-resize-height"
                   type="number"
@@ -167,26 +271,26 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
                   value={resize.height ?? ''}
                   disabled={processing}
                   onChange={(event) => updateResize({ height: parseDimension(event.target.value) })}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="control h-8 px-2.5 font-mono text-xs"
                 />
               </label>
-              <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
+              <label className="flex h-8 cursor-pointer items-center gap-2 text-xs font-medium text-ink-dim transition-colors hover:text-ink">
                 <input
                   data-testid="override-resize-keep-aspect"
                   type="checkbox"
                   checked={keepAspect}
                   disabled={processing}
                   onChange={(event) => updateResize({ keepAspect: event.target.checked })}
-                  className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="checkbox"
                 />
-                Keep aspect ratio
+                Keep aspect
               </label>
             </div>
           ) : null}
 
           {resize.mode === 'percentage' ? (
-            <label className="flex w-24 flex-col gap-1 text-xs font-medium text-slate-300">
-              Scale (%)
+            <label className="flex w-24 flex-col gap-2">
+              <span className="label">Scale (%)</span>
               <input
                 data-testid="override-resize-percentage"
                 type="number"
@@ -199,22 +303,32 @@ export default function PerImageSettings({ item }: { item: ImageItem }) {
                 onChange={(event) =>
                   updateResize({ percentage: parseDimension(event.target.value) })
                 }
-                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="control h-8 px-2.5 font-mono text-xs"
               />
             </label>
           ) : null}
 
-          {isOverridden ? (
-            <button
-              type="button"
-              data-testid="override-reset"
-              disabled={processing}
-              onClick={() => setImageSettings(item.id, null)}
-              className="inline-flex w-fit items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Reset to global
-            </button>
+          {resize.mode !== 'none' ? (
+            <ResizeHint
+              resize={resize}
+              example={
+                item.originalWidth != null && item.originalHeight != null
+                  ? { width: item.originalWidth, height: item.originalHeight }
+                  : undefined
+              }
+            />
           ) : null}
+
+          <button
+            type="button"
+            data-testid="override-apply"
+            disabled={processing}
+            onClick={onApply}
+            className="inline-flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-xs font-semibold text-well transition-all duration-300 ease-fluid select-none hover:bg-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-ink"
+          >
+            <BoltGlyph />
+            {item.result != null ? 'Re-optimize this image' : 'Optimize this image'}
+          </button>
         </div>
       ) : null}
     </div>

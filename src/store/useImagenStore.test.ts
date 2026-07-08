@@ -326,3 +326,78 @@ describe('reducer idempotency and unknown-id guards', () => {
     expect(selectErrorCount(state)).toBe(1)
   })
 })
+
+describe('startProcessingSingle', () => {
+  function seedTwo() {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    return useImagenStore.getState().images.map((i) => i.id)
+  }
+
+  const fakeResult = {
+    blob: new Blob(['out']),
+    url: 'blob:out',
+    outputType: 'image/webp',
+    outputBytes: 250,
+    width: 100,
+    height: 100,
+    outputName: 'a.webp',
+  }
+
+  function completeBatch(ids: string[]): void {
+    useImagenStore.getState().startProcessing()
+    ids.forEach((id, index) => {
+      useImagenStore.getState().markProcessing(id)
+      useImagenStore.getState().markDone(id, { ...fakeResult, url: `blob:out-${index}` })
+    })
+  }
+
+  it('requeues only the targeted item and scopes the batch to it', () => {
+    const [id1, id2] = seedTwo()
+    completeBatch([id1, id2])
+    expect(useImagenStore.getState().batch.status).toBe('done')
+
+    useImagenStore.getState().startProcessingSingle(id1)
+
+    const state = useImagenStore.getState()
+    const first = state.images.find((i) => i.id === id1)!
+    const second = state.images.find((i) => i.id === id2)!
+    expect(first.status).toBe('queued')
+    expect(first.result).toBeDefined()
+    expect(second.status).toBe('done')
+    expect(state.batch).toMatchObject({ status: 'processing', total: 1, completed: 0 })
+  })
+
+  it('lets the requeued item run through the normal reducers to a 1/1 done batch', () => {
+    const [id1, id2] = seedTwo()
+    completeBatch([id1, id2])
+
+    useImagenStore.getState().startProcessingSingle(id1)
+    useImagenStore.getState().markProcessing(id1)
+    useImagenStore.getState().markDone(id1, { ...fakeResult, url: 'blob:out-new' })
+
+    const state = useImagenStore.getState()
+    expect(state.images.find((i) => i.id === id1)!.status).toBe('done')
+    expect(state.images.find((i) => i.id === id1)!.result!.url).toBe('blob:out-new')
+    expect(state.batch).toMatchObject({ status: 'done', total: 1, completed: 1 })
+  })
+
+  it('clears a previous error on the requeued item', () => {
+    const [id1] = seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markError(id1, 'decode failed')
+
+    useImagenStore.getState().startProcessingSingle(id1)
+
+    const first = useImagenStore.getState().images.find((i) => i.id === id1)!
+    expect(first.status).toBe('queued')
+    expect(first.error).toBeUndefined()
+  })
+
+  it('ignores unknown ids without touching the batch', () => {
+    seedTwo()
+    const before = useImagenStore.getState().batch
+    useImagenStore.getState().startProcessingSingle('missing')
+    expect(useImagenStore.getState().batch).toEqual(before)
+  })
+})

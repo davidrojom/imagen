@@ -1,10 +1,11 @@
 import { useImagenStore } from '../store/useImagenStore'
+import ResizeHint from './ResizeHint'
 import type { ResizeSettings } from '../types'
 
 const MODE_OPTIONS: { value: ResizeSettings['mode']; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'dimensions', label: 'Fit to dimensions' },
-  { value: 'percentage', label: 'Percentage' },
+  { value: 'none', label: 'Keep original size' },
+  { value: 'dimensions', label: 'Fit within dimensions' },
+  { value: 'percentage', label: 'Scale by percentage' },
 ]
 
 function parseDimension(raw: string): number | undefined {
@@ -17,6 +18,9 @@ export default function ResizeControls() {
   const resize = useImagenStore((state) => state.globalSettings.resize)
   const setGlobalSettings = useImagenStore((state) => state.setGlobalSettings)
   const processing = useImagenStore((state) => state.batch.status === 'processing')
+  const exampleItem = useImagenStore((state) =>
+    state.images.find((item) => item.originalWidth != null && item.originalHeight != null),
+  )
 
   const update = (patch: Partial<ResizeSettings>) => {
     setGlobalSettings({ resize: { ...resize, ...patch } })
@@ -37,16 +41,16 @@ export default function ResizeControls() {
   return (
     <section
       data-testid="resize-controls"
-      className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-800 bg-slate-800/40 p-4"
+      className="flex flex-wrap items-end gap-x-10 gap-y-5 px-5 py-5 sm:px-6"
     >
-      <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
-        Resize
+      <label className="flex flex-col gap-2.5">
+        <span className="label">Resize</span>
         <select
           data-testid="resize-mode"
           value={resize.mode}
           disabled={processing}
           onChange={(event) => onModeChange(event.target.value as ResizeSettings['mode'])}
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="control-select min-w-44"
         >
           {MODE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -58,8 +62,8 @@ export default function ResizeControls() {
 
       {resize.mode === 'dimensions' ? (
         <>
-          <label className="flex w-24 flex-col gap-1 text-xs font-medium text-slate-300">
-            Max width
+          <label className="flex w-28 flex-col gap-2.5">
+            <span className="label">Width (px)</span>
             <input
               data-testid="resize-width"
               type="number"
@@ -70,12 +74,12 @@ export default function ResizeControls() {
               value={resize.width ?? ''}
               disabled={processing}
               onChange={(event) => update({ width: parseDimension(event.target.value) })}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="control font-mono"
             />
           </label>
 
-          <label className="flex w-24 flex-col gap-1 text-xs font-medium text-slate-300">
-            Max height
+          <label className="flex w-28 flex-col gap-2.5">
+            <span className="label">Height (px)</span>
             <input
               data-testid="resize-height"
               type="number"
@@ -86,18 +90,18 @@ export default function ResizeControls() {
               value={resize.height ?? ''}
               disabled={processing}
               onChange={(event) => update({ height: parseDimension(event.target.value) })}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="control font-mono"
             />
           </label>
 
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-300">
+          <label className="flex h-9 cursor-pointer items-center gap-2.5 text-xs font-medium text-ink-dim transition-colors hover:text-ink">
             <input
               data-testid="resize-keep-aspect"
               type="checkbox"
               checked={keepAspect}
               disabled={processing}
               onChange={(event) => update({ keepAspect: event.target.checked })}
-              className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="checkbox"
             />
             Keep aspect ratio
           </label>
@@ -105,8 +109,8 @@ export default function ResizeControls() {
       ) : null}
 
       {resize.mode === 'percentage' ? (
-        <label className="flex w-28 flex-col gap-1 text-xs font-medium text-slate-300">
-          Scale (%)
+        <label className="flex w-28 flex-col gap-2.5">
+          <span className="label">Scale (%)</span>
           <input
             data-testid="resize-percentage"
             type="number"
@@ -117,9 +121,26 @@ export default function ResizeControls() {
             value={resize.percentage ?? ''}
             disabled={processing}
             onChange={(event) => update({ percentage: parseDimension(event.target.value) })}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="control font-mono"
           />
         </label>
+      ) : null}
+
+      {resize.mode !== 'none' ? (
+        <div className="basis-full">
+          <ResizeHint
+            resize={resize}
+            example={
+              exampleItem
+                ? {
+                    width: exampleItem.originalWidth!,
+                    height: exampleItem.originalHeight!,
+                    name: exampleItem.name,
+                  }
+                : undefined
+            }
+          />
+        </div>
       ) : null}
     </section>
   )

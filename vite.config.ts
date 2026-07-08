@@ -29,8 +29,8 @@ export default defineConfig({
         name: 'Imagen',
         short_name: 'Imagen',
         description: 'Client-side batch image optimizer',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#141310',
+        background_color: '#141310',
         display: 'standalone',
         start_url: '/',
         icons: [
@@ -45,7 +45,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,wasm,svg,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,wasm,svg,png,ico,woff2}'],
         maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,

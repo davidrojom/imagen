@@ -2,6 +2,48 @@ import { useCallback, useRef, useState } from 'react'
 import { useImagenStore } from '../store/useImagenStore'
 import { isImageFile } from '../lib/imageFiles'
 
+const INPUT_FORMATS = ['jpeg', 'png', 'webp', 'avif', 'jxl', 'gif']
+
+function ImageGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="26"
+      height="26"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="4.5" />
+      <circle cx="9" cy="9" r="1.75" />
+      <path d="m3 16.5 4.6-4.6a1.9 1.9 0 0 1 2.7 0l5.2 5.2" />
+      <path d="m14 15 1.8-1.8a1.9 1.9 0 0 1 2.7 0L21 15.7" />
+    </svg>
+  )
+}
+
+function ArrowGlyph() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2.5 8h10m0 0L8.75 4.25M12.5 8l-3.75 3.75" />
+    </svg>
+  )
+}
+
 export default function Dropzone() {
   const addFiles = useImagenStore((state) => state.addFiles)
   const hasImages = useImagenStore((state) => state.images.length > 0)
@@ -53,6 +95,8 @@ export default function Dropzone() {
     [ingest],
   )
 
+  const openPicker = () => inputRef.current?.click()
+
   return (
     <div
       data-testid="dropzone"
@@ -62,38 +106,86 @@ export default function Dropzone() {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       aria-label="Add images"
-      className={[
-        'flex flex-col items-center justify-center rounded-xl border-2 border-dashed text-center transition-colors',
-        hasImages ? 'gap-2 px-6 py-6' : 'gap-3 px-6 py-16',
-        dragging
-          ? 'border-sky-400 bg-sky-500/10'
-          : 'border-slate-700 bg-slate-800/40 hover:border-slate-500',
-      ].join(' ')}
+      className={hasImages ? 'animate-rise' : 'bezel'}
     >
-      <p className="text-lg font-medium text-slate-100">
-        {hasImages ? 'Add more images' : 'Drag & drop images here'}
-      </p>
-      <p className="text-sm text-slate-400">
-        {hasImages
-          ? 'Drop more files or choose them below. Everything stays on your device.'
-          : 'or choose files to optimize. Images never leave your browser.'}
-      </p>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="mt-1 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-sky-400"
+      <div
+        className={[
+          'border border-dashed transition-all duration-300 ease-fluid',
+          hasImages
+            ? 'flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl px-5 py-4'
+            : 'bezel-core flex flex-col items-center justify-center px-6 py-16 text-center sm:py-20',
+          dragging
+            ? 'border-ember/60 bg-ember/[0.05]'
+            : 'border-white/[0.1] bg-canvas/40 hover:border-white/[0.2]',
+        ].join(' ')}
       >
-        Choose images
-      </button>
-      <input
-        ref={inputRef}
-        data-testid="file-input"
-        type="file"
-        accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.jxl"
-        multiple
-        onChange={onChange}
-        className="hidden"
-      />
+        {hasImages ? (
+          <>
+            <div className="flex min-w-0 items-center gap-4">
+              <span
+                className={[
+                  'flex size-10 shrink-0 items-center justify-center rounded-xl border transition-all duration-300 ease-fluid',
+                  dragging
+                    ? 'border-ember/40 bg-ember/10 text-ember'
+                    : 'border-white/[0.08] bg-white/[0.04] text-ink-dim',
+                ].join(' ')}
+              >
+                <ImageGlyph className="size-5" />
+              </span>
+              <div className="min-w-0 text-left">
+                <p className="text-sm font-medium">Add more images</p>
+                <p className="mt-0.5 truncate text-xs text-ink-faint">
+                  Drop more files anywhere in this area — everything stays on your device.
+                </p>
+              </div>
+            </div>
+            <button type="button" onClick={openPicker} className="btn-ghost h-9 px-4 text-xs">
+              Choose images
+            </button>
+          </>
+        ) : (
+          <>
+            <span
+              className={[
+                'flex size-13 items-center justify-center rounded-2xl border transition-all duration-300 ease-fluid',
+                dragging
+                  ? '-translate-y-1 border-ember/40 bg-ember/10 text-ember'
+                  : 'border-white/[0.08] bg-white/[0.04] text-ink-dim',
+              ].join(' ')}
+            >
+              <ImageGlyph />
+            </span>
+            <p className="mt-6 text-lg font-medium">
+              {dragging ? 'Drop them right here' : 'Drag & drop images here'}
+            </p>
+            <p className="mt-1.5 text-sm text-ink-faint">
+              or pick files from disk — they are read locally, never uploaded
+            </p>
+            <button type="button" onClick={openPicker} className="btn-primary mt-7">
+              Choose images
+              <span className="btn-primary-orb">
+                <ArrowGlyph />
+              </span>
+            </button>
+            <ul className="mt-9 flex flex-wrap items-center justify-center gap-1.5">
+              {INPUT_FORMATS.map((format) => (
+                <li key={format} className="chip">
+                  {format}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        <input
+          ref={inputRef}
+          data-testid="file-input"
+          type="file"
+          accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.jxl"
+          multiple
+          onChange={onChange}
+          className="hidden"
+        />
+      </div>
     </div>
   )
 }

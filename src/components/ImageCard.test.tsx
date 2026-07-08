@@ -38,6 +38,57 @@ beforeEach(() => {
   resetStore()
 })
 
+describe('ImageCard per-image optimize slot', () => {
+  const doneResult = {
+    blob: new Blob(['out']),
+    url: 'blob:out-1',
+    outputType: 'image/webp',
+    outputBytes: 512,
+    width: 800,
+    height: 600,
+    outputName: 'photo.webp',
+  }
+
+  it('offers an optimize action in place of stats while the image is queued', () => {
+    const item = seedItem()
+    const optimizer = { optimizeOne: vi.fn() }
+    render(<ImageCard item={item} optimizer={optimizer} />)
+    const button = screen.getByTestId('optimize-button')
+    expect(button).toHaveTextContent(/optimize/i)
+    expect(screen.queryByTestId('output-size')).not.toBeInTheDocument()
+    fireEvent.click(button)
+    expect(optimizer.optimizeOne).toHaveBeenCalledTimes(1)
+    expect(optimizer.optimizeOne).toHaveBeenCalledWith('id-1')
+  })
+
+  it('swaps the optimize action for stats and download once the image is done', () => {
+    const item = seedItem({ status: 'done', result: doneResult })
+    render(<ImageCard item={item} optimizer={{ optimizeOne: vi.fn() }} />)
+    expect(screen.queryByTestId('optimize-button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('output-size')).toBeInTheDocument()
+    expect(screen.getByTestId('compare-button')).toBeInTheDocument()
+    expect(screen.getByTestId('download-link')).toBeInTheDocument()
+  })
+
+  it('offers a retry action alongside the error message for a failed image', () => {
+    const item = seedItem({ status: 'error', error: 'decode failed' })
+    const optimizer = { optimizeOne: vi.fn() }
+    render(<ImageCard item={item} optimizer={optimizer} />)
+    expect(screen.getByTestId('error-message')).toHaveTextContent('decode failed')
+    const button = screen.getByTestId('optimize-button')
+    expect(button).toHaveTextContent(/retry/i)
+    fireEvent.click(button)
+    expect(optimizer.optimizeOne).toHaveBeenCalledWith('id-1')
+  })
+
+  it('disables the optimize action while a batch is processing', () => {
+    const item = seedItem()
+    useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
+    render(<ImageCard item={item} optimizer={{ optimizeOne: vi.fn() }} />)
+    expect(screen.getByTestId('optimize-button')).toBeDisabled()
+  })
+})
+
 describe('ImageCard', () => {
   it('renders a thumbnail from the object URL with the filename as alt text', () => {
     const item = seedItem()

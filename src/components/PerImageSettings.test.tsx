@@ -130,6 +130,66 @@ describe('PerImageSettings reset to global', () => {
   })
 })
 
+describe('PerImageSettings apply / re-optimize', () => {
+  const doneResult = {
+    blob: new Blob(['out']),
+    url: 'blob:out',
+    outputType: 'image/webp',
+    outputBytes: 512,
+    width: 800,
+    height: 600,
+    outputName: 'photo.webp',
+  }
+
+  it('sends only this image back to the optimizer when apply is activated', () => {
+    const item = seedItem()
+    const optimizer = { optimizeOne: vi.fn() }
+    render(<PerImageSettings item={item} optimizer={optimizer} />)
+    fireEvent.click(screen.getByTestId('override-edit-toggle'))
+    fireEvent.click(screen.getByTestId('override-apply'))
+    expect(optimizer.optimizeOne).toHaveBeenCalledTimes(1)
+    expect(optimizer.optimizeOne).toHaveBeenCalledWith('id-1')
+  })
+
+  it('labels apply as an initial optimize before the image has a result', () => {
+    const item = seedItem()
+    render(<PerImageSettings item={item} optimizer={{ optimizeOne: vi.fn() }} />)
+    fireEvent.click(screen.getByTestId('override-edit-toggle'))
+    expect(screen.getByTestId('override-apply')).toHaveTextContent(/^optimize this image$/i)
+  })
+
+  it('labels apply as re-optimize once the image has a result', () => {
+    const item = seedItem({ status: 'done', result: doneResult })
+    render(<PerImageSettings item={item} optimizer={{ optimizeOne: vi.fn() }} />)
+    fireEvent.click(screen.getByTestId('override-edit-toggle'))
+    expect(screen.getByTestId('override-apply')).toHaveTextContent(/re-optimize this image/i)
+  })
+})
+
+describe('PerImageSettings popover behavior', () => {
+  it('closes when pointing down outside the popover', () => {
+    const item = seedItem()
+    render(<PerImageSettings item={item} optimizer={{ optimizeOne: vi.fn() }} />)
+    fireEvent.click(screen.getByTestId('override-edit-toggle'))
+    expect(screen.getByTestId('override-format-select')).toBeInTheDocument()
+
+    fireEvent.pointerDown(document.body)
+    expect(screen.queryByTestId('override-format-select')).not.toBeInTheDocument()
+  })
+
+  it('stays open while interacting inside and closes on Escape', () => {
+    const item = seedItem()
+    render(<PerImageSettings item={item} optimizer={{ optimizeOne: vi.fn() }} />)
+    fireEvent.click(screen.getByTestId('override-edit-toggle'))
+
+    fireEvent.pointerDown(screen.getByTestId('override-format-select'))
+    expect(screen.getByTestId('override-format-select')).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('override-format-select')).not.toBeInTheDocument()
+  })
+})
+
 describe('PerImageSettings disabled while processing', () => {
   it('disables the editor toggle while a batch is processing', () => {
     const item = seedItem()

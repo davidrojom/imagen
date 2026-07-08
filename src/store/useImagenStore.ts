@@ -22,6 +22,7 @@ export interface ImagenState {
   setImageSettings: (id: string, patch: Partial<EncodeSettings> | null) => void
   select: (id: string | null) => void
   startProcessing: () => void
+  startProcessingSingle: (id: string) => void
   markProcessing: (id: string) => void
   markDone: (id: string, result: ImageResult) => void
   markError: (id: string, message: string) => void
@@ -111,6 +112,20 @@ export const useImagenStore = create<ImagenState>()((set) => ({
       })),
       batch: { status: 'processing', total: state.images.length, completed: 0 },
     })),
+
+  startProcessingSingle: (id) =>
+    set((state) => {
+      const item = state.images.find((entry) => entry.id === id)
+      if (!item) return {}
+      return {
+        images: state.images.map((entry) =>
+          entry.id === id
+            ? { ...entry, status: 'queued' as const, progress: undefined, error: undefined }
+            : entry,
+        ),
+        batch: { status: 'processing', total: 1, completed: 0 },
+      }
+    }),
 
   markProcessing: (id) =>
     set((state) => {

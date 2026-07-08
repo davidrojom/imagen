@@ -6,25 +6,22 @@ export default function ImageGrid() {
   const clearAll = useImagenStore((state) => state.clearAll)
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-slate-300">
-          {images.length} {images.length === 1 ? 'image' : 'images'}
+    <section className="mt-3 flex flex-col gap-4">
+      <div className="flex items-baseline justify-between px-1">
+        <h2 className="text-sm text-ink-dim">
+          <span className="font-mono text-ink">{images.length}</span>{' '}
+          {images.length === 1 ? 'image' : 'images'} in the batch
         </h2>
-        <button
-          type="button"
-          onClick={clearAll}
-          className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
-        >
+        <button type="button" onClick={clearAll} className="btn-quiet">
           Clear all
         </button>
       </div>
       <ul
         data-testid="image-grid"
-        className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+        className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
-        {images.map((item) => (
-          <ImageCard key={item.id} item={item} />
+        {images.map((item, index) => (
+          <ImageCard key={item.id} item={item} index={index} />
         ))}
       </ul>
     </section>

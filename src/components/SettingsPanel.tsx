@@ -16,10 +16,10 @@ export default function SettingsPanel() {
   return (
     <section
       data-testid="settings-panel"
-      className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-800 bg-slate-800/40 p-4"
+      className="flex flex-wrap items-end gap-x-10 gap-y-5 px-5 py-5 sm:px-6"
     >
-      <label className="flex flex-col gap-1 text-xs font-medium text-slate-300">
-        Output format
+      <label className="flex flex-col gap-2.5">
+        <span className="label">Output format</span>
         <select
           data-testid="format-select"
           value={format}
@@ -27,7 +27,7 @@ export default function SettingsPanel() {
           onChange={(event) =>
             setGlobalSettings({ format: event.target.value as OutputFormat })
           }
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="control-select min-w-44"
         >
           {FORMAT_IDS.map((id) => (
             <option key={id} value={id}>
@@ -38,9 +38,12 @@ export default function SettingsPanel() {
       </label>
 
       {showQuality && spec.quality ? (
-        <label className="flex min-w-48 flex-col gap-1 text-xs font-medium text-slate-300">
-          <span>
-            Quality: <span data-testid="quality-value">{quality ?? spec.quality.default}</span>
+        <label className="flex w-full min-w-52 flex-col gap-1.5 sm:max-w-72 sm:flex-1">
+          <span className="label flex items-baseline justify-between">
+            Quality
+            <span data-testid="quality-value" className="font-mono text-xs text-ink">
+              {quality ?? spec.quality.default}
+            </span>
           </span>
           <input
             data-testid="quality-slider"
@@ -50,16 +53,18 @@ export default function SettingsPanel() {
             value={quality ?? spec.quality.default}
             disabled={processing}
             onChange={(event) => setGlobalSettings({ quality: Number(event.target.value) })}
-            className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="slider"
           />
         </label>
       ) : null}
 
       {showLevel && spec.effort ? (
-        <label className="flex min-w-48 flex-col gap-1 text-xs font-medium text-slate-300">
-          <span>
-            Optimization level:{' '}
-            <span data-testid="level-value">{effort ?? spec.effort.default}</span>
+        <label className="flex w-full min-w-52 flex-col gap-1.5 sm:max-w-72 sm:flex-1">
+          <span className="label flex items-baseline justify-between">
+            Optimization level
+            <span data-testid="level-value" className="font-mono text-xs text-ink">
+              {effort ?? spec.effort.default}
+            </span>
           </span>
           <input
             data-testid="level-slider"
@@ -69,7 +74,7 @@ export default function SettingsPanel() {
             value={effort ?? spec.effort.default}
             disabled={processing}
             onChange={(event) => setGlobalSettings({ effort: Number(event.target.value) })}
-            className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="slider"
           />
         </label>
       ) : null}
