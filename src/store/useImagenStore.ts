@@ -183,3 +183,6 @@ export const selectDoneCount = (state: ImagenState): number =>
     (count, item) => (item.status === 'done' && item.result ? count + 1 : count),
     0,
   )
+
+export const selectErrorCount = (state: ImagenState): number =>
+  state.images.reduce((count, item) => (item.status === 'error' ? count + 1 : count), 0)

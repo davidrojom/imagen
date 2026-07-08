@@ -86,6 +86,8 @@ describe('BatchToolbar Optimize all + progress', () => {
     expect(progress).toHaveAttribute('aria-valuemax', '4')
     expect(progress).toHaveTextContent(/1\s*\/\s*4/)
 
+    expect(screen.getByTestId('batch-percent')).toHaveTextContent('25%')
+
     act(() => {
       useImagenStore.setState({ batch: { status: 'done', total: 4, completed: 4 } })
     })
@@ -93,6 +95,23 @@ describe('BatchToolbar Optimize all + progress', () => {
     const done = screen.getByTestId('batch-progress')
     expect(done).toHaveAttribute('aria-valuenow', '4')
     expect(done).toHaveTextContent(/4\s*\/\s*4|complete/i)
+    expect(screen.getByTestId('batch-percent')).toHaveTextContent('100%')
+  })
+
+  it('surfaces a failed count and a "Complete with errors" label when items error', () => {
+    seedItem({ status: 'error', error: 'boom' })
+    useImagenStore.setState({ batch: { status: 'done', total: 1, completed: 1 } })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    expect(screen.getByTestId('batch-error-count')).toHaveTextContent('1 failed')
+    expect(screen.getByTestId('batch-status-label')).toHaveTextContent(/complete with errors/i)
+  })
+
+  it('shows a plain "Complete" label and no failed count when every item succeeds', () => {
+    seedItem({ status: 'done', result: doneResult('photo.webp') })
+    useImagenStore.setState({ batch: { status: 'done', total: 1, completed: 1 } })
+    render(<BatchToolbar optimizer={fakeOptimizer()} />)
+    expect(screen.getByTestId('batch-status-label')).toHaveTextContent(/^Complete$/)
+    expect(screen.queryByTestId('batch-error-count')).not.toBeInTheDocument()
   })
 })
 

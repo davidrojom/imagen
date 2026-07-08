@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   selectBatchProgress,
+  selectDoneCount,
   selectEffectiveSettings,
+  selectErrorCount,
   useImagenStore,
 } from './useImagenStore'
 import { defaultEncodeSettings } from '../lib/settings'
@@ -312,5 +314,15 @@ describe('reducer idempotency and unknown-id guards', () => {
     expect(batch.completed).toBe(2)
     expect(batch.completed).toBeLessThanOrEqual(batch.total)
     expect(batch.status).toBe('done')
+  })
+
+  it('selectDoneCount and selectErrorCount split terminal outcomes', () => {
+    const [id1, id2] = seedTwo()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().markError(id2, 'boom')
+    const state = useImagenStore.getState()
+    expect(selectDoneCount(state)).toBe(1)
+    expect(selectErrorCount(state)).toBe(1)
   })
 })

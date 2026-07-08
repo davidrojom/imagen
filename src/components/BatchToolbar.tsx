@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { useImagenStore, selectBatchProgress, selectDoneCount } from '../store/useImagenStore'
+import {
+  useImagenStore,
+  selectBatchProgress,
+  selectDoneCount,
+  selectErrorCount,
+} from '../store/useImagenStore'
 import { getOptimizer, type OptimizerLike } from '../codec/optimizer'
 import { downloadImagesZip } from '../lib/zip'
 
@@ -12,10 +17,12 @@ export default function BatchToolbar({
   const batch = useImagenStore((state) => state.batch)
   const progress = useImagenStore(selectBatchProgress)
   const doneCount = useImagenStore(selectDoneCount)
+  const errorCount = useImagenStore(selectErrorCount)
   const [zipping, setZipping] = useState(false)
 
   const processing = batch.status === 'processing'
   const complete = batch.status === 'done' && batch.total > 0
+  const percent = Math.round(progress * 100)
 
   const handleDownloadZip = async () => {
     if (zipping) return
@@ -53,9 +60,21 @@ export default function BatchToolbar({
       {batch.total > 0 ? (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>{complete ? 'Complete' : 'Optimizing'}</span>
-            <span data-testid="batch-counter">
-              {batch.completed} / {batch.total}
+            <span data-testid="batch-status-label">
+              {complete ? (errorCount > 0 ? 'Complete with errors' : 'Complete') : 'Optimizing'}
+            </span>
+            <span className="flex items-center gap-2">
+              {errorCount > 0 ? (
+                <span data-testid="batch-error-count" className="font-medium text-rose-300">
+                  {errorCount} failed
+                </span>
+              ) : null}
+              <span data-testid="batch-counter">
+                {batch.completed} / {batch.total}
+              </span>
+              <span data-testid="batch-percent" className="tabular-nums text-slate-500">
+                {percent}%
+              </span>
             </span>
           </div>
           <div
