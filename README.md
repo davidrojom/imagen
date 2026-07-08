@@ -9,7 +9,7 @@ All heavy work (decode, resize, encode) runs in a pool of Web Workers using the 
 - Multi-file drag-and-drop and file picker, with a grid showing per-image thumbnail, original/optimized size, and % saved.
 - Five output encoders: **MozJPEG**, **WebP**, **AVIF**, **PNG (OxiPNG)**, and **JPEG XL**, with format-aware quality / optimization-level controls.
 - Optional resizing (fit to dimensions keeping aspect ratio, or by percentage).
-- Global settings plus per-image overrides, with re-optimization on change.
+- Global settings plus per-image overrides; changing settings does not re-run automatically, so click "Optimize all" to re-encode with the new settings.
 - Before/after compare view with a draggable slider.
 - Batch "Optimize all", individual downloads, and "Download all as ZIP" (via `client-zip`, STORE mode, no recompression).
 - Global batch progress and per-image error handling.
@@ -26,7 +26,7 @@ All heavy work (decode, resize, encode) runs in a pool of Web Workers using the 
 
 ## Prerequisites
 
-- **Node.js 20 or newer** and **npm** (the app is verified on Node 20; the Docker build uses Node 22).
+- **Node.js 20.19+ or 22.12+** and **npm** (Vite 8 requires `^20.19.0 || >=22.12.0`; the Docker build uses Node 22).
 - No credentials, environment variables, or external services are required.
 
 ## Setup
