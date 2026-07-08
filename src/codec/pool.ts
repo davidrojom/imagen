@@ -39,7 +39,7 @@ export class CodecPool {
   private readonly options: CodecPoolOptions
   private readonly createWorker: WorkerFactory
   private idle: PoolWorker[] = []
-  private created = 0
+  private active = new Set<PoolWorker>()
   private queue: string[] = []
   private generation = 0
 
@@ -47,6 +47,10 @@ export class CodecPool {
     this.options = options
     this.size = options.size ?? computePoolSize()
     this.createWorker = options.createWorker ?? defaultCreateWorker
+  }
+
+  private get liveCount(): number {
+    return this.idle.length + this.active.size
   }
 
   processMany(ids: string[]): void {
@@ -59,14 +63,14 @@ export class CodecPool {
     this.queue = []
     for (const worker of this.idle) worker.dispose()
     this.idle = []
-    this.created = 0
+    for (const worker of this.active) worker.dispose()
+    this.active.clear()
   }
 
   private acquire(): PoolWorker | null {
     const existing = this.idle.pop()
     if (existing) return existing
-    if (this.created < this.size) {
-      this.created++
+    if (this.liveCount < this.size) {
       return this.createWorker()
     }
     return null
@@ -77,6 +81,7 @@ export class CodecPool {
       const worker = this.acquire()
       if (!worker) break
       const id = this.queue.shift()!
+      this.active.add(worker)
       void this.run(id, worker)
     }
   }
@@ -94,11 +99,11 @@ export class CodecPool {
       }
     } finally {
       if (generation === this.generation) {
+        this.active.delete(worker)
         this.idle.push(worker)
         this.pump()
-      } else {
-        worker.dispose()
       }
+      // If the generation advanced, clear() already disposed this worker.
     }
   }
 }

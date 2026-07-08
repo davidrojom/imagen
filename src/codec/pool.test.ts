@@ -41,24 +41,38 @@ class FakeWorkerFactory {
   disposed = 0
   active = 0
   maxActive = 0
+  maxLive = 0
   pending: Deferred[] = []
   calls: ProcessInput[] = []
 
+  get live(): number {
+    return this.created - this.disposed
+  }
+
   create = (): PoolWorker => {
     this.created++
+    this.maxLive = Math.max(this.maxLive, this.live)
+    let disposedSelf = false
+    let inFlight: Deferred | null = null
     return {
       processImage: (input: ProcessInput) => {
         this.calls.push(input)
         this.active++
         this.maxActive = Math.max(this.maxActive, this.active)
         const d = deferred()
+        inFlight = d
         this.pending.push(d)
         return d.promise.finally(() => {
           this.active--
+          if (inFlight === d) inFlight = null
         })
       },
       dispose: () => {
+        if (disposedSelf) return
+        disposedSelf = true
         this.disposed++
+        // Terminating a worker aborts any in-flight work it was running.
+        inFlight?.reject(new Error('worker terminated'))
       },
     }
   }
@@ -214,7 +228,7 @@ describe('CodecPool', () => {
     expect(done).toEqual(['a', 'b'])
   })
 
-  it('clear() empties the queue, disposes idle workers, and suppresses in-flight callbacks', async () => {
+  it('clear() empties the queue, disposes idle AND in-flight workers, and suppresses late callbacks', async () => {
     const done: string[] = []
     const errors: string[] = []
     const pool = new CodecPool({
@@ -228,22 +242,67 @@ describe('CodecPool', () => {
     pool.processMany(['a', 'b', 'c', 'd'])
     await flush()
     expect(factory.active).toBe(2)
+    expect(factory.live).toBe(2)
 
     pool.clear()
 
-    // A late resolution of an in-flight task must not fire onDone.
+    // clear() must terminate/dispose all in-flight workers, not just empty the queue.
+    expect(factory.disposed).toBe(2)
+    expect(factory.live).toBe(0)
+
+    // A late resolution of an already-cleared in-flight task must not fire onDone/onError.
     factory.pending[0].resolve(makeResult())
     await flush()
 
     expect(done).toEqual([])
     expect(errors).toEqual([])
+    // The cleared worker is not disposed a second time when its stale promise settles.
+    expect(factory.disposed).toBe(2)
 
-    // A fresh batch after clear starts cleanly on new workers.
+    // A fresh batch after clear starts cleanly on brand-new workers.
     pool.processMany(['e'])
     await flush()
-    expect(factory.created).toBeGreaterThanOrEqual(3)
+    expect(factory.created).toBe(3)
     factory.pending[factory.pending.length - 1].resolve(makeResult())
     await flush()
     expect(done).toEqual(['e'])
+  })
+
+  it('never exceeds the pool size in live workers across a clear->restart cycle', async () => {
+    const done: string[] = []
+    const pool = new CodecPool({
+      size: 2,
+      createWorker: factory.create,
+      getInput: () => makeInput(),
+      onDone: (id) => done.push(id),
+    })
+
+    // First batch saturates the pool.
+    pool.processMany(['a', 'b', 'c', 'd'])
+    await flush()
+    expect(factory.live).toBe(2)
+    expect(factory.maxLive).toBe(2)
+
+    // Clear mid-flight, then immediately restart with a fresh batch.
+    pool.clear()
+    expect(factory.live).toBe(0)
+
+    pool.processMany(['e', 'f', 'g'])
+    await flush()
+
+    // The orphaned workers from the cleared batch must not run alongside the new ones:
+    // live workers never exceed the pool size at any point.
+    expect(factory.maxLive).toBe(2)
+    expect(factory.live).toBe(2)
+    expect(factory.maxActive).toBe(2)
+
+    // Drive the restarted batch to completion.
+    for (let i = 0; i < 10 && done.length < 3; i++) {
+      factory.pending.forEach((d) => d.resolve(makeResult()))
+      await flush()
+    }
+    expect(done.sort()).toEqual(['e', 'f', 'g'])
+    // Still bounded after the restarted batch fully drains.
+    expect(factory.maxLive).toBe(2)
   })
 })

@@ -1,4 +1,3 @@
-import * as Comlink from 'comlink'
 import type { EncodeSettings, OutputFormat } from '../types'
 import type { CodecApi, ProcessInput, ProcessResult } from './codec.types'
 import { getFormatSpec } from './formats'
@@ -99,14 +98,13 @@ async function processImage(input: ProcessInput): Promise<ProcessResult> {
   const decoded = await decodeToImageData(buffer, sourceType)
   const image = await resizeImage(decoded, settings)
   const output = await encodeImage(image, settings)
-  const result: ProcessResult = {
+  return {
     buffer: output,
     outputType: outputMimeFor(settings.format),
     width: image.width,
     height: image.height,
     bytes: output.byteLength,
   }
-  return Comlink.transfer(result, [result.buffer])
 }
 
 export const codecApi: CodecApi = { processImage }
