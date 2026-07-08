@@ -78,4 +78,54 @@ describe('ImageCard', () => {
     fireEvent.click(within(container).getByRole('button', { name: /remove/i }))
     expect(useImagenStore.getState().images.map((i) => i.name)).toEqual(['b.jpg'])
   })
+
+  it('shows output size and a positive savings for a shrinking result when done', () => {
+    const item = seedItem({
+      status: 'done',
+      originalBytes: 2048,
+      result: {
+        blob: new Blob(['out']),
+        url: 'blob:out',
+        outputType: 'image/webp',
+        outputBytes: 512,
+        width: 800,
+        height: 600,
+        outputName: 'photo.webp',
+      },
+    })
+    render(<ImageCard item={item} />)
+    const outputSize = screen.getByTestId('output-size')
+    expect(outputSize).toHaveTextContent('512 B')
+    const savings = screen.getByTestId('savings')
+    expect(Number(savings.getAttribute('data-savings'))).toBeGreaterThan(0)
+    expect(savings).toHaveTextContent('75')
+  })
+
+  it('does not show misleading positive savings when the output did not shrink', () => {
+    const item = seedItem({
+      status: 'done',
+      originalBytes: 110,
+      result: {
+        blob: new Blob(['out']),
+        url: 'blob:out',
+        outputType: 'image/webp',
+        outputBytes: 400,
+        width: 8,
+        height: 8,
+        outputName: 'photo.webp',
+      },
+    })
+    render(<ImageCard item={item} />)
+    const savings = screen.getByTestId('savings')
+    expect(Number(savings.getAttribute('data-savings'))).toBeLessThanOrEqual(0)
+    expect(savings).not.toHaveTextContent(/^\s*75%/)
+    expect(screen.getByTestId('output-size')).toHaveTextContent('400 B')
+  })
+
+  it('does not show output size or savings before the item is done', () => {
+    const item = seedItem({ status: 'queued' })
+    render(<ImageCard item={item} />)
+    expect(screen.queryByTestId('output-size')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('savings')).not.toBeInTheDocument()
+  })
 })

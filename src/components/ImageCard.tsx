@@ -1,5 +1,5 @@
 import { useImagenStore } from '../store/useImagenStore'
-import { formatBytes } from '../lib/savings'
+import { formatBytes, savingsPercent } from '../lib/savings'
 import type { ImageItem, ImageStatus } from '../types'
 
 const STATUS_META: Record<ImageStatus, { label: string; className: string }> = {
@@ -15,6 +15,8 @@ export default function ImageCard({ item }: { item: ImageItem }) {
 
   const hasDimensions = item.originalWidth != null && item.originalHeight != null
   const status = STATUS_META[item.status]
+  const result = item.status === 'done' ? item.result : undefined
+  const savings = result ? savingsPercent(item.originalBytes, result.outputBytes) : 0
 
   const onLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
     if (item.originalWidth != null) return
@@ -70,6 +72,36 @@ export default function ImageCard({ item }: { item: ImageItem }) {
         >
           {status.label}
         </span>
+        {item.status === 'error' && item.error ? (
+          <p data-testid="error-message" className="mt-1 text-xs text-rose-300" title={item.error}>
+            {item.error}
+          </p>
+        ) : null}
+        {result ? (
+          <div
+            data-result-url={result.url}
+            className="mt-1 flex items-center justify-between text-xs"
+          >
+            <span data-testid="output-size" className="text-slate-300">
+              → {formatBytes(result.outputBytes)}
+            </span>
+            <span
+              data-testid="savings"
+              data-savings={savings}
+              className={
+                savings > 0
+                  ? 'font-medium text-emerald-300'
+                  : 'font-medium text-rose-300'
+              }
+            >
+              {savings > 0
+                ? `−${savings}% smaller`
+                : savings === 0
+                  ? 'No savings'
+                  : `+${Math.abs(savings)}% larger`}
+            </span>
+          </div>
+        ) : null}
       </div>
     </li>
   )

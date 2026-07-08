@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import Dropzone from './components/Dropzone'
 import ImageGrid from './components/ImageGrid'
+import BatchToolbar from './components/BatchToolbar'
 import { useImagenStore } from './store/useImagenStore'
 
 export default function App() {
@@ -20,7 +21,12 @@ export default function App() {
       </header>
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6">
         <Dropzone />
-        {hasImages ? <ImageGrid /> : null}
+        {hasImages ? (
+          <>
+            <BatchToolbar />
+            <ImageGrid />
+          </>
+        ) : null}
       </div>
     </main>
   )
