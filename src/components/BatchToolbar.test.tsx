@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BatchToolbar from './BatchToolbar'
 import { useImagenStore } from '../store/useImagenStore'
@@ -41,47 +41,6 @@ beforeEach(() => {
   resetStore()
 })
 
-describe('BatchToolbar format + quality controls', () => {
-  it('offers all five output formats with WebP selected by default', () => {
-    seedItem()
-    render(<BatchToolbar optimizer={fakeOptimizer()} />)
-    const select = screen.getByTestId('format-select') as HTMLSelectElement
-    const labels = within(select)
-      .getAllByRole('option')
-      .map((o) => o.textContent)
-    expect(labels).toEqual(['JPEG', 'WebP', 'AVIF', 'PNG', 'JPEG XL'])
-    expect(select.value).toBe('webp')
-  })
-
-  it('shows a default quality value for the lossy default format', () => {
-    seedItem()
-    render(<BatchToolbar optimizer={fakeOptimizer()} />)
-    const quality = screen.getByTestId('quality-slider') as HTMLInputElement
-    expect(quality.value).toBe('75')
-  })
-
-  it('changing the format updates the global settings', () => {
-    seedItem()
-    render(<BatchToolbar optimizer={fakeOptimizer()} />)
-    fireEvent.change(screen.getByTestId('format-select'), { target: { value: 'avif' } })
-    expect(useImagenStore.getState().globalSettings.format).toBe('avif')
-  })
-
-  it('changing the quality updates the global settings', () => {
-    seedItem()
-    render(<BatchToolbar optimizer={fakeOptimizer()} />)
-    fireEvent.change(screen.getByTestId('quality-slider'), { target: { value: '40' } })
-    expect(useImagenStore.getState().globalSettings.quality).toBe(40)
-  })
-
-  it('hides the lossy quality slider when PNG is selected', () => {
-    seedItem()
-    useImagenStore.getState().setGlobalSettings({ format: 'oxipng' })
-    render(<BatchToolbar optimizer={fakeOptimizer()} />)
-    expect(screen.queryByTestId('quality-slider')).not.toBeInTheDocument()
-  })
-})
-
 describe('BatchToolbar Optimize all + progress', () => {
   it('invokes the optimizer when Optimize all is clicked', () => {
     seedItem()
@@ -96,14 +55,6 @@ describe('BatchToolbar Optimize all + progress', () => {
     useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
     render(<BatchToolbar optimizer={fakeOptimizer()} />)
     expect(screen.getByRole('button', { name: /optimize all/i })).toBeDisabled()
-  })
-
-  it('disables the format and quality controls while a batch is processing', () => {
-    seedItem({ status: 'processing' })
-    useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
-    render(<BatchToolbar optimizer={fakeOptimizer()} />)
-    expect(screen.getByTestId('format-select')).toBeDisabled()
-    expect(screen.getByTestId('quality-slider')).toBeDisabled()
   })
 
   it('shows a batch progress indicator with completed/total that reaches complete', () => {

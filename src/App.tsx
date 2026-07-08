@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import Dropzone from './components/Dropzone'
 import ImageGrid from './components/ImageGrid'
+import SettingsPanel from './components/SettingsPanel'
 import BatchToolbar from './components/BatchToolbar'
 import { useImagenStore } from './store/useImagenStore'
 
@@ -23,6 +24,7 @@ export default function App() {
         <Dropzone />
         {hasImages ? (
           <>
+            <SettingsPanel />
             <BatchToolbar />
             <ImageGrid />
           </>
