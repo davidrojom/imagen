@@ -12,6 +12,8 @@ function resetStore(): void {
     globalSettings: defaultEncodeSettings('webp'),
     selectedId: null,
     batch: { status: 'idle', total: 0, completed: 0 },
+    globalCrop: { kind: 'none' },
+    cropEditorId: null,
   })
 }
 
@@ -28,12 +30,14 @@ class FakeWorkers {
         this.calls.push(input)
         if (this.failFor(input)) throw new Error('decode failed')
         const bytes = this.bytesFor(input)
+        const crop = input.settings.crop?.rect ?? (input.settings.crop?.ratio ? { x: 0, y: 0, width: 10, height: 10 } : undefined)
         return {
           buffer: new ArrayBuffer(bytes),
           outputType: getFormatSpec(input.settings.format).mime,
           width: 12,
           height: 8,
           bytes,
+          crop,
         }
       },
       dispose: () => {},
@@ -297,5 +301,48 @@ describe('Optimizer', () => {
     expect(state.images.map((i) => i.name)).toEqual(['e.png', 'f.png'])
     expect(state.images.every((i) => i.status === 'done')).toBe(true)
     expect(state.batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+})
+
+describe('Optimizer crop snapshots', () => {
+  it('sends no crop when globalCrop is none', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    seed(['a.png'])
+    optimizer.optimizeAll()
+    await runToSettled()
+    expect(fake.calls[0].settings.crop).toBeUndefined()
+  })
+
+  it('sends the batch ratio for auto crops', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    seed(['a.png'])
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 16, h: 9 })
+    optimizer.optimizeAll()
+    await runToSettled()
+    expect(fake.calls[0].settings.crop).toEqual({ ratio: { w: 16, h: 9 } })
+  })
+
+  it('sends the manual rect when the image has one', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const [id] = seed(['a.png'])
+    const rect = { x: 5, y: 6, width: 70, height: 80 }
+    useImagenStore.getState().setImageCrop(id, { rect })
+    optimizer.optimizeAll()
+    await runToSettled()
+    expect(fake.calls[0].settings.crop).toEqual({ rect })
+  })
+
+  it('stores the applied crop rect on the result', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const [id] = seed(['a.png'])
+    const rect = { x: 5, y: 6, width: 70, height: 80 }
+    useImagenStore.getState().setImageCrop(id, { rect })
+    optimizer.optimizeAll()
+    await runToSettled()
+    expect(useImagenStore.getState().images[0].result?.cropRect).toEqual(rect)
   })
 })

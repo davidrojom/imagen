@@ -4,7 +4,8 @@ import type { ImagenState } from '../store/useImagenStore'
 import { useImagenStore } from '../store/useImagenStore'
 import { resolveSettings } from '../lib/settings'
 import { uniqueOutputName } from '../lib/filenames'
-import type { EncodeSettings } from '../types'
+import type { EncodeSettings, ImageItem } from '../types'
+import { cropSnapshot } from '../lib/cropMath'
 
 export interface OptimizerLike {
   optimizeAll: () => void
@@ -45,12 +46,19 @@ export class Optimizer implements OptimizerLike {
     })
   }
 
+  private resolveWithCrop(item: ImageItem, state: ImagenState): EncodeSettings {
+    return {
+      ...resolveSettings(item.settings, state.globalSettings),
+      crop: cropSnapshot(item.crop, state.globalCrop),
+    }
+  }
+
   optimizeAll(): void {
     const state = this.store.getState()
     const ids = state.images.map((item) => item.id)
     if (ids.length === 0) return
     for (const item of state.images) {
-      this.snapshots.set(item.id, resolveSettings(item.settings, state.globalSettings))
+      this.snapshots.set(item.id, this.resolveWithCrop(item, state))
     }
     state.startProcessing()
     this.pool.processMany(ids)
@@ -61,7 +69,7 @@ export class Optimizer implements OptimizerLike {
     if (state.batch.status === 'processing') return
     const item = state.images.find((entry) => entry.id === id)
     if (!item) return
-    this.snapshots.set(id, resolveSettings(item.settings, state.globalSettings))
+    this.snapshots.set(id, this.resolveWithCrop(item, state))
     state.startProcessingSingle(id)
     this.pool.processMany([id])
   }
@@ -76,7 +84,8 @@ export class Optimizer implements OptimizerLike {
     if (snapshot) return snapshot
     const state = this.store.getState()
     const item = state.images.find((entry) => entry.id === id)
-    return resolveSettings(item?.settings ?? null, state.globalSettings)
+    if (!item) return resolveSettings(null, state.globalSettings)
+    return this.resolveWithCrop(item, state)
   }
 
   private async getInput(id: string): Promise<ProcessInput> {
@@ -109,6 +118,7 @@ export class Optimizer implements OptimizerLike {
       width: result.width,
       height: result.height,
       outputName: uniqueOutputName(item.name, settings.format, takenNames),
+      cropRect: result.crop,
     })
     this.snapshots.delete(id)
   }
