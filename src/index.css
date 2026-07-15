@@ -304,3 +304,28 @@
     @apply rounded-[calc(1.75rem-0.375rem)];
   }
 }
+
+/* react-image-crop, restyled to match the design system */
+.ReactCrop__crop-selection {
+  border: 1.5px solid color-mix(in oklab, var(--color-ember) 90%, white);
+  border-image: none;
+  border-radius: 2px;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
+}
+
+.ReactCrop__rule-of-thirds-vt::before,
+.ReactCrop__rule-of-thirds-vt::after,
+.ReactCrop__rule-of-thirds-hz::before,
+.ReactCrop__rule-of-thirds-hz::after {
+  background-color: rgb(255 255 255 / 0.22);
+}
+
+.ReactCrop__drag-handle,
+.ReactCrop__drag-handle::after {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: var(--color-ember);
+  border: 2px solid var(--color-well);
+  outline: none;
+}

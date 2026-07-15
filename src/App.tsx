@@ -5,6 +5,7 @@ import CropControls from "./components/CropControls";
 import ResizeControls from "./components/ResizeControls";
 import BatchToolbar from "./components/BatchToolbar";
 import CompareSlider from "./components/CompareSlider";
+import CropEditorModal from "./components/CropEditorModal";
 import { useImagenStore } from "./store/useImagenStore";
 
 const FEATURES = [
@@ -60,6 +61,7 @@ export default function App() {
               </div>
             </div>
             <CompareSlider />
+            <CropEditorModal />
             <ImageGrid />
           </div>
         ) : (
