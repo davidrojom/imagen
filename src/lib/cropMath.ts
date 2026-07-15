@@ -33,8 +33,10 @@ export function centeredCrop(dims: Dimensions, ratio: { w: number; h: number }):
     height = dims.height
     width = height * target
   }
-  const w = Math.min(dims.width, Math.max(1, Math.round(width)))
-  const h = Math.min(dims.height, Math.max(1, Math.round(height)))
+  const minW = Math.min(MIN_CROP_PX, dims.width)
+  const minH = Math.min(MIN_CROP_PX, dims.height)
+  const w = Math.min(dims.width, Math.max(minW, Math.round(width)))
+  const h = Math.min(dims.height, Math.max(minH, Math.round(height)))
   return {
     x: Math.round((dims.width - w) / 2),
     y: Math.round((dims.height - h) / 2),

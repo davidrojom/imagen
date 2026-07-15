@@ -63,6 +63,15 @@ describe('centeredCrop', () => {
     expect(crop.x + crop.width).toBeLessThanOrEqual(dims.width)
     expect(crop.y + crop.height).toBeLessThanOrEqual(dims.height)
   })
+
+  it('enforces the minimum crop size even when the ratio would make a side smaller', () => {
+    expect(centeredCrop({ width: 20, height: 20 }, { w: 16, h: 9 })).toEqual({
+      x: 0,
+      y: 2,
+      width: 20,
+      height: 16,
+    })
+  })
 })
 
 describe('clampRect', () => {
