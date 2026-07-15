@@ -1,4 +1,4 @@
-import type { EncodeSettings } from '../types'
+import type { CropRect, EncodeSettings } from '../types'
 
 export interface ProcessInput {
   buffer: ArrayBuffer
@@ -12,6 +12,7 @@ export interface ProcessResult {
   width: number
   height: number
   bytes: number
+  crop?: CropRect
 }
 
 export interface CodecApi {

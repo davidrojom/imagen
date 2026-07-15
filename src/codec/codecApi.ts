@@ -2,6 +2,8 @@ import type { EncodeSettings, OutputFormat } from '../types'
 import type { CodecApi, ProcessInput, ProcessResult } from './codec.types'
 import { getFormatSpec } from './formats'
 import { computeTargetDimensions } from '../lib/resizeMath'
+import { resolveCropRect } from '../lib/cropMath'
+import { cropImageData } from './cropImage'
 
 export function outputMimeFor(format: OutputFormat): string {
   return getFormatSpec(format).mime
@@ -96,7 +98,9 @@ async function encodeImage(image: ImageData, settings: EncodeSettings): Promise<
 async function processImage(input: ProcessInput): Promise<ProcessResult> {
   const { buffer, sourceType, settings } = input
   const decoded = await decodeToImageData(buffer, sourceType)
-  const image = await resizeImage(decoded, settings)
+  const cropRect = resolveCropRect({ width: decoded.width, height: decoded.height }, settings.crop)
+  const cropped = cropRect ? cropImageData(decoded, cropRect) : decoded
+  const image = await resizeImage(cropped, settings)
   const output = await encodeImage(image, settings)
   return {
     buffer: output,
@@ -104,6 +108,7 @@ async function processImage(input: ProcessInput): Promise<ProcessResult> {
     width: image.width,
     height: image.height,
     bytes: output.byteLength,
+    crop: cropRect,
   }
 }
 
