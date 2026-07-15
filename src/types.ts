@@ -9,11 +9,29 @@ export interface ResizeSettings {
   fitMethod?: 'stretch' | 'contain'
 }
 
+export interface CropRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type CropRatio =
+  | { kind: 'none' }
+  | { kind: 'free' }
+  | { kind: 'ratio'; w: number; h: number }
+
+export interface CropSettings {
+  ratio?: CropRatio // per-image override; absent = follow the batch ratio
+  rect?: CropRect // manual rect from the editor; absent = auto-centered
+}
+
 export interface EncodeSettings {
   format: OutputFormat
   quality?: number
   effort?: number
   resize: ResizeSettings
+  crop?: { rect?: CropRect; ratio?: { w: number; h: number } }
 }
 
 export type ImageStatus = 'queued' | 'processing' | 'done' | 'error'
@@ -26,6 +44,7 @@ export interface ImageResult {
   width: number
   height: number
   outputName: string
+  cropRect?: CropRect
 }
 
 export interface ImageItem {
@@ -38,6 +57,7 @@ export interface ImageItem {
   originalHeight?: number
   previewUrl: string
   settings: EncodeSettings | null
+  crop?: CropSettings
   status: ImageStatus
   progress?: number
   result?: ImageResult
