@@ -1,6 +1,7 @@
 import Dropzone from "./components/Dropzone";
 import ImageGrid from "./components/ImageGrid";
 import SettingsPanel from "./components/SettingsPanel";
+import CropControls from "./components/CropControls";
 import ResizeControls from "./components/ResizeControls";
 import BatchToolbar from "./components/BatchToolbar";
 import CompareSlider from "./components/CompareSlider";
@@ -53,6 +54,7 @@ export default function App() {
             >
               <div className="bezel-core divide-y divide-white/[0.06] overflow-hidden bg-canvas/50 ring-1 ring-white/[0.04]">
                 <SettingsPanel />
+                <CropControls />
                 <ResizeControls />
                 <BatchToolbar />
               </div>
