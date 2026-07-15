@@ -21,6 +21,8 @@ beforeEach(() => {
     globalSettings: defaultEncodeSettings(),
     selectedId: null,
     batch: { status: 'idle', total: 0, completed: 0 },
+    globalCrop: { kind: 'none' },
+    cropEditorId: null,
   })
 })
 
@@ -399,5 +401,75 @@ describe('startProcessingSingle', () => {
     const before = useImagenStore.getState().batch
     useImagenStore.getState().startProcessingSingle('missing')
     expect(useImagenStore.getState().batch).toEqual(before)
+  })
+})
+
+describe('crop state', () => {
+  const sixteenNine = { kind: 'ratio', w: 16, h: 9 } as const
+  const rect = { x: 10, y: 10, width: 100, height: 100 }
+
+  it('defaults to no batch crop and a closed editor', () => {
+    expect(useImagenStore.getState().globalCrop).toEqual({ kind: 'none' })
+    expect(useImagenStore.getState().cropEditorId).toBeNull()
+  })
+
+  it('setGlobalCrop stores the ratio', () => {
+    useImagenStore.getState().setGlobalCrop(sixteenNine)
+    expect(useImagenStore.getState().globalCrop).toEqual(sixteenNine)
+  })
+
+  it('setImageCrop sets and clears one image only', () => {
+    const { addFiles, setImageCrop } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    const [id1, id2] = useImagenStore.getState().images.map((i) => i.id)
+    setImageCrop(id1, { rect })
+    expect(useImagenStore.getState().images[0].crop).toEqual({ rect })
+    expect(useImagenStore.getState().images[1].crop).toBeUndefined()
+    setImageCrop(id1, null)
+    expect(useImagenStore.getState().images[0].crop).toBeUndefined()
+    expect(id2).toBeTruthy()
+  })
+
+  it('setGlobalCrop clears all per-image crop state (clean slate)', () => {
+    const { addFiles, setImageCrop, setGlobalCrop } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    const [id1, id2] = useImagenStore.getState().images.map((i) => i.id)
+    setImageCrop(id1, { rect })
+    setImageCrop(id2, { ratio: { kind: 'free' } })
+    setGlobalCrop(sixteenNine)
+    expect(useImagenStore.getState().images.every((i) => i.crop === undefined)).toBe(true)
+    expect(useImagenStore.getState().globalCrop).toEqual(sixteenNine)
+  })
+
+  it('open/close crop editor tracks the active image', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg')])
+    const id = useImagenStore.getState().images[0].id
+    useImagenStore.getState().openCropEditor(id)
+    expect(useImagenStore.getState().cropEditorId).toBe(id)
+    useImagenStore.getState().closeCropEditor()
+    expect(useImagenStore.getState().cropEditorId).toBeNull()
+  })
+
+  it('removing the image being edited closes the editor', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg')])
+    const [id1, id2] = useImagenStore.getState().images.map((i) => i.id)
+    useImagenStore.getState().openCropEditor(id1)
+    useImagenStore.getState().removeImage(id1)
+    expect(useImagenStore.getState().cropEditorId).toBeNull()
+    useImagenStore.getState().openCropEditor(id2)
+    useImagenStore.getState().removeImage(id1) // no-op remove
+    expect(useImagenStore.getState().cropEditorId).toBe(id2)
+  })
+
+  it('clearAll resets crop state', () => {
+    const { addFiles, setGlobalCrop } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg')])
+    setGlobalCrop(sixteenNine)
+    useImagenStore.getState().openCropEditor(useImagenStore.getState().images[0].id)
+    useImagenStore.getState().clearAll()
+    expect(useImagenStore.getState().globalCrop).toEqual({ kind: 'none' })
+    expect(useImagenStore.getState().cropEditorId).toBeNull()
   })
 })

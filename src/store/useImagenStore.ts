@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { EncodeSettings, ImageItem, ImageResult } from '../types'
+import type { CropRatio, CropSettings, EncodeSettings, ImageItem, ImageResult } from '../types'
 import { defaultEncodeSettings, mergeEncodeSettings, resolveSettings } from '../lib/settings'
 
 export interface BatchState {
@@ -13,6 +13,8 @@ export interface ImagenState {
   globalSettings: EncodeSettings
   selectedId: string | null
   batch: BatchState
+  globalCrop: CropRatio
+  cropEditorId: string | null
 
   addFiles: (files: Iterable<File>) => void
   setImageDimensions: (id: string, width: number, height: number) => void
@@ -20,6 +22,10 @@ export interface ImagenState {
   clearAll: () => void
   setGlobalSettings: (patch: Partial<EncodeSettings>) => void
   setImageSettings: (id: string, patch: Partial<EncodeSettings> | null) => void
+  setGlobalCrop: (ratio: CropRatio) => void
+  setImageCrop: (id: string, crop: CropSettings | null) => void
+  openCropEditor: (id: string) => void
+  closeCropEditor: () => void
   select: (id: string | null) => void
   startProcessing: () => void
   startProcessingSingle: (id: string) => void
@@ -48,6 +54,8 @@ export const useImagenStore = create<ImagenState>()((set) => ({
   globalSettings: defaultEncodeSettings(),
   selectedId: null,
   batch: { ...initialBatch },
+  globalCrop: { kind: 'none' },
+  cropEditorId: null,
 
   addFiles: (files) =>
     set((state) => {
@@ -78,13 +86,20 @@ export const useImagenStore = create<ImagenState>()((set) => ({
       return {
         images: state.images.filter((item) => item.id !== id),
         selectedId: state.selectedId === id ? null : state.selectedId,
+        cropEditorId: state.cropEditorId === id ? null : state.cropEditorId,
       }
     }),
 
   clearAll: () =>
     set((state) => {
       state.images.forEach(revokeItemUrls)
-      return { images: [], selectedId: null, batch: { ...initialBatch } }
+      return {
+        images: [],
+        selectedId: null,
+        batch: { ...initialBatch },
+        globalCrop: { kind: 'none' } as CropRatio,
+        cropEditorId: null,
+      }
     }),
 
   setGlobalSettings: (patch) =>
@@ -99,6 +114,23 @@ export const useImagenStore = create<ImagenState>()((set) => ({
         return { ...item, settings: mergeEncodeSettings(base, patch) }
       }),
     })),
+
+  setGlobalCrop: (ratio) =>
+    set((state) => ({
+      globalCrop: ratio,
+      images: state.images.map((item) => (item.crop ? { ...item, crop: undefined } : item)),
+    })),
+
+  setImageCrop: (id, crop) =>
+    set((state) => ({
+      images: state.images.map((item) =>
+        item.id === id ? { ...item, crop: crop ?? undefined } : item,
+      ),
+    })),
+
+  openCropEditor: (id) => set({ cropEditorId: id }),
+
+  closeCropEditor: () => set({ cropEditorId: null }),
 
   select: (id) => set({ selectedId: id }),
 
