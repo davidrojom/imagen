@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import CropEditorModal from './CropEditorModal'
 import { useImagenStore } from '../store/useImagenStore'
 import { defaultEncodeSettings } from '../lib/settings'
@@ -155,7 +155,9 @@ describe('CropEditorModal', () => {
     render(<CropEditorModal />)
     fireEvent.click(screen.getByTestId('crop-editor-close'))
     expect(useImagenStore.getState().cropEditorId).toBeNull()
-    useImagenStore.getState().openCropEditor(id1)
+    act(() => {
+      useImagenStore.getState().openCropEditor(id1)
+    })
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(useImagenStore.getState().cropEditorId).toBeNull()
   })
