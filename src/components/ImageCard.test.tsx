@@ -310,7 +310,24 @@ describe('cropping UI', () => {
     expect(screen.getByTestId('crop-badge')).toHaveTextContent('1:1')
     const frame = screen.getByTestId('thumbnail-crop-frame')
     expect(frame.style.aspectRatio).toBe('900 / 900')
+    // A square crop is taller than the 4/3 checker box, so the frame is
+    // height-driven (width derives) and must not carry a stray width: 100%.
+    expect(frame.style.height).toBe('100%')
+    expect(frame.style.width).toBe('')
     expect(screen.getByTestId('thumbnail')).toBeInTheDocument()
+  })
+
+  it('drives a wide crop by width so it never overflows the checker box', () => {
+    useImagenStore.getState().addFiles([new File(['x'], 'a.jpg', { type: 'image/jpeg' })])
+    const id = useImagenStore.getState().images[0].id
+    useImagenStore.getState().setImageDimensions(id, 1600, 900)
+    // A 2:1 band on a 16:9 source is a genuine crop (letterboxed) wider than 4/3.
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 2, h: 1 })
+    render(<ImageCard item={useImagenStore.getState().images[0]} />)
+    const frame = screen.getByTestId('thumbnail-crop-frame')
+    expect(frame.style.aspectRatio).toBe('1600 / 800')
+    expect(frame.style.width).toBe('100%')
+    expect(frame.style.height).toBe('')
   })
 
   it('opens the crop editor at this image', () => {

@@ -91,7 +91,8 @@ export default function ImageCard({
     ? { width: item.originalWidth!, height: item.originalHeight! }
     : null
   const cropRect = dims ? effectiveCropRect(item.crop, globalCrop, dims) : undefined
-  const cropStyles = cropRect && dims ? cropPreviewStyles(cropRect, dims) : null
+  // The thumbnail frame lives inside the aspect-4/3 checker box.
+  const cropStyles = cropRect && dims ? cropPreviewStyles(cropRect, dims, 4 / 3) : null
   const cropRatio = effectiveRatio(item.crop, globalCrop)
   const cropBadge = cropRect ? (cropRatio.kind === 'ratio' ? ratioLabel(cropRatio) : 'Crop') : null
 
@@ -127,7 +128,7 @@ export default function ImageCard({
           {cropStyles ? (
             <div
               data-testid="thumbnail-crop-frame"
-              className="relative max-h-full w-full overflow-hidden rounded-[0.375rem]"
+              className="relative overflow-hidden rounded-[0.375rem]"
               style={cropStyles.frame}
             >
               <img

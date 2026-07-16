@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useImagenStore } from '../store/useImagenStore'
 import { formatBytes, savingsPercent } from '../lib/savings'
-import { cropPreviewStyles } from '../lib/cropPreview'
+import { cropFrameStyle, cropPreviewStyles } from '../lib/cropPreview'
 
 const JXL_MIME = 'image/jxl'
 
@@ -113,7 +113,10 @@ export default function CompareSlider() {
   const hasDims = item.originalWidth != null && item.originalHeight != null
   const cropRect = result.cropRect
   const alignCrop = cropRect != null && hasDims
-  const frameStyle = alignCrop ? { aspectRatio: `${result.width} / ${result.height}` } : undefined
+  // Both frames share one style keyed off the RESULT dims (intentional: a
+  // stretch-resize must distort original and optimized identically). The canvas
+  // is aspect-video (16/9), so drive the frame along whichever axis fits it.
+  const frameStyle = alignCrop ? cropFrameStyle(result.width, result.height, 16 / 9) : undefined
   const originalStyles = alignCrop
     ? cropPreviewStyles(cropRect, { width: item.originalWidth!, height: item.originalHeight! })
     : null
@@ -173,7 +176,7 @@ export default function CompareSlider() {
               alignCrop ? (
                 <div
                   data-testid="compare-frame-optimized"
-                  className="relative max-h-full w-full overflow-hidden"
+                  className="relative overflow-hidden"
                   style={frameStyle}
                 >
                   <img
@@ -215,7 +218,7 @@ export default function CompareSlider() {
             {alignCrop && originalStyles ? (
               <div
                 data-testid="compare-frame-original"
-                className="relative max-h-full w-full overflow-hidden"
+                className="relative overflow-hidden"
                 style={frameStyle}
               >
                 <img

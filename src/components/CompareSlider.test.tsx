@@ -199,10 +199,33 @@ describe('crop alignment', () => {
     const frameB = screen.getByTestId('compare-frame-optimized')
     expect(frameA.style.aspectRatio).toBe('900 / 900')
     expect(frameB.style.aspectRatio).toBe('900 / 900')
+    // A square result is taller than the 16/9 canvas, so both frames are
+    // height-driven (width derives) — no stray width: 100% that would distort.
+    expect(frameA.style.height).toBe('100%')
+    expect(frameA.style.width).toBe('')
+    expect(frameB.style.height).toBe('100%')
+    expect(frameB.style.width).toBe('')
     const original = screen.getByTestId('compare-original')
     // 1600/900 ≈ 177.78% width, offset -350/900 ≈ -38.89%
     expect(original.style.width).toBe(`${(1600 / 900) * 100}%`)
     expect(original.style.left).toBe(`-${(350 / 900) * 100}%`)
+  })
+
+  it('drives both frames by width when the cropped result is wider than the canvas', () => {
+    seedDoneImage({
+      originalWidth: 1600,
+      originalHeight: 1200,
+      result: { width: 1200, height: 400, cropRect: { x: 0, y: 400, width: 1600, height: 533 } },
+    })
+    render(<CompareSlider />)
+    const frameA = screen.getByTestId('compare-frame-original')
+    const frameB = screen.getByTestId('compare-frame-optimized')
+    // result 1200/400 = 3.0 ≥ 16/9, so both frames are width-driven.
+    expect(frameA.style.aspectRatio).toBe('1200 / 400')
+    expect(frameA.style.width).toBe('100%')
+    expect(frameA.style.height).toBe('')
+    expect(frameB.style.width).toBe('100%')
+    expect(frameB.style.height).toBe('')
   })
 
   it('keeps the plain markup when the result has no crop', () => {
