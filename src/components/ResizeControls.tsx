@@ -1,4 +1,5 @@
 import { useImagenStore } from '../store/useImagenStore'
+import { effectiveCropRect } from '../lib/cropMath'
 import ResizeHint from './ResizeHint'
 import type { ResizeSettings } from '../types'
 
@@ -18,6 +19,7 @@ export default function ResizeControls() {
   const resize = useImagenStore((state) => state.globalSettings.resize)
   const setGlobalSettings = useImagenStore((state) => state.setGlobalSettings)
   const processing = useImagenStore((state) => state.batch.status === 'processing')
+  const globalCrop = useImagenStore((state) => state.globalCrop)
   const exampleItem = useImagenStore((state) =>
     state.images.find((item) => item.originalWidth != null && item.originalHeight != null),
   )
@@ -132,11 +134,18 @@ export default function ResizeControls() {
             resize={resize}
             example={
               exampleItem
-                ? {
-                    width: exampleItem.originalWidth!,
-                    height: exampleItem.originalHeight!,
-                    name: exampleItem.name,
-                  }
+                ? (() => {
+                    const dims = {
+                      width: exampleItem.originalWidth!,
+                      height: exampleItem.originalHeight!,
+                    }
+                    const rect = effectiveCropRect(exampleItem.crop, globalCrop, dims)
+                    return {
+                      width: rect?.width ?? dims.width,
+                      height: rect?.height ?? dims.height,
+                      name: exampleItem.name,
+                    }
+                  })()
                 : undefined
             }
           />

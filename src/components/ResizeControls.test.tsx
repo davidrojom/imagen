@@ -10,6 +10,8 @@ function resetStore(): void {
     globalSettings: defaultEncodeSettings('webp'),
     selectedId: null,
     batch: { status: 'idle', total: 0, completed: 0 },
+    globalCrop: { kind: 'none' },
+    cropEditorId: null,
   })
 }
 
@@ -137,5 +139,17 @@ describe('ResizeControls disabled while processing', () => {
     useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
     render(<ResizeControls />)
     expect(screen.getByTestId('resize-mode')).toBeDisabled()
+  })
+})
+
+describe('crop-aware example', () => {
+  it('previews resize math against the cropped dimensions', () => {
+    useImagenStore.getState().addFiles([new File(['x'], 'a.jpg', { type: 'image/jpeg' })])
+    const id = useImagenStore.getState().images[0].id
+    useImagenStore.getState().setImageDimensions(id, 1600, 900)
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().setGlobalSettings({ resize: { mode: 'percentage', percentage: 50 } })
+    render(<ResizeControls />)
+    expect(screen.getByTestId('resize-preview')).toHaveTextContent('900 × 900 → 450 × 450 px')
   })
 })

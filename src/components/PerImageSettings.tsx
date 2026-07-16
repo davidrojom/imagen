@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useImagenStore } from '../store/useImagenStore'
+import { effectiveCropRect } from '../lib/cropMath'
 import { FORMAT_IDS, getFormatSpec } from '../codec/formats'
 import { getOptimizer } from '../codec/optimizer'
 import ResizeHint from './ResizeHint'
@@ -66,6 +67,7 @@ export default function PerImageSettings({
   optimizer?: PerImageOptimizer
 }) {
   const globalSettings = useImagenStore((state) => state.globalSettings)
+  const globalCrop = useImagenStore((state) => state.globalCrop)
   const override = useImagenStore(
     (state) => state.images.find((entry) => entry.id === item.id)?.settings ?? null,
   )
@@ -313,7 +315,15 @@ export default function PerImageSettings({
               resize={resize}
               example={
                 item.originalWidth != null && item.originalHeight != null
-                  ? { width: item.originalWidth, height: item.originalHeight }
+                  ? (() => {
+                      // TS narrowing does not survive into the closure — assert non-null
+                      const dims = { width: item.originalWidth!, height: item.originalHeight! }
+                      const rect = effectiveCropRect(item.crop, globalCrop, dims)
+                      return {
+                        width: rect?.width ?? dims.width,
+                        height: rect?.height ?? dims.height,
+                      }
+                    })()
                   : undefined
               }
             />
