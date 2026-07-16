@@ -11,6 +11,8 @@ function resetStore(): void {
     globalSettings: defaultEncodeSettings(),
     selectedId: null,
     batch: { status: 'idle', total: 0, completed: 0 },
+    globalCrop: { kind: 'none' },
+    cropEditorId: null,
   })
 }
 
@@ -282,5 +284,49 @@ describe('ImageCard', () => {
     const item = seedItem()
     render(<ImageCard item={item} />)
     expect(screen.getByTestId('per-image-settings')).toBeInTheDocument()
+  })
+})
+
+describe('cropping UI', () => {
+  function seedCroppedImage() {
+    useImagenStore.getState().addFiles([new File(['x'], 'a.jpg', { type: 'image/jpeg' })])
+    const id = useImagenStore.getState().images[0].id
+    useImagenStore.getState().setImageDimensions(id, 1600, 900)
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    return useImagenStore.getState().images[0]
+  }
+
+  it('shows no crop badge or frame without a crop', () => {
+    useImagenStore.getState().addFiles([new File(['x'], 'a.jpg', { type: 'image/jpeg' })])
+    const item = useImagenStore.getState().images[0]
+    render(<ImageCard item={item} />)
+    expect(screen.queryByTestId('crop-badge')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('thumbnail-crop-frame')).not.toBeInTheDocument()
+  })
+
+  it('previews the crop and shows the ratio badge when cropping is active', () => {
+    const item = seedCroppedImage()
+    render(<ImageCard item={item} />)
+    expect(screen.getByTestId('crop-badge')).toHaveTextContent('1:1')
+    const frame = screen.getByTestId('thumbnail-crop-frame')
+    expect(frame.style.aspectRatio).toBe('900 / 900')
+    expect(screen.getByTestId('thumbnail')).toBeInTheDocument()
+  })
+
+  it('opens the crop editor at this image', () => {
+    const item = seedCroppedImage()
+    render(<ImageCard item={item} />)
+    fireEvent.click(screen.getByTestId('crop-open-button'))
+    expect(useImagenStore.getState().cropEditorId).toBe(item.id)
+  })
+
+  it('labels a freeform manual crop as "Crop"', () => {
+    useImagenStore.getState().addFiles([new File(['x'], 'a.jpg', { type: 'image/jpeg' })])
+    const id = useImagenStore.getState().images[0].id
+    useImagenStore.getState().setImageDimensions(id, 1600, 900)
+    useImagenStore.getState().setGlobalCrop({ kind: 'free' })
+    useImagenStore.getState().setImageCrop(id, { rect: { x: 0, y: 0, width: 400, height: 300 } })
+    render(<ImageCard item={useImagenStore.getState().images[0]} />)
+    expect(screen.getByTestId('crop-badge')).toHaveTextContent('Crop')
   })
 })

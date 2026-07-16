@@ -2,6 +2,8 @@ import { useImagenStore } from '../store/useImagenStore'
 import { formatBytes, savingsPercent } from '../lib/savings'
 import { getFormatSpec } from '../codec/formats'
 import { getOptimizer } from '../codec/optimizer'
+import { effectiveCropRect, effectiveRatio, ratioLabel } from '../lib/cropMath'
+import { cropPreviewStyles } from '../lib/cropPreview'
 import PerImageSettings, { type PerImageOptimizer } from './PerImageSettings'
 import type { ImageItem, ImageStatus } from '../types'
 
@@ -47,6 +49,25 @@ function BoltGlyph() {
   )
 }
 
+function CropGlyph() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4.5 1.5v10h10" />
+      <path d="M1.5 4.5h10v10" />
+    </svg>
+  )
+}
+
 export default function ImageCard({
   item,
   index = 0,
@@ -61,8 +82,19 @@ export default function ImageCard({
   const select = useImagenStore((state) => state.select)
   const globalSettings = useImagenStore((state) => state.globalSettings)
   const processing = useImagenStore((state) => state.batch.status === 'processing')
+  const globalCrop = useImagenStore((state) => state.globalCrop)
+  const openCropEditor = useImagenStore((state) => state.openCropEditor)
 
   const hasDimensions = item.originalWidth != null && item.originalHeight != null
+
+  const dims = hasDimensions
+    ? { width: item.originalWidth!, height: item.originalHeight! }
+    : null
+  const cropRect = dims ? effectiveCropRect(item.crop, globalCrop, dims) : undefined
+  const cropStyles = cropRect && dims ? cropPreviewStyles(cropRect, dims) : null
+  const cropRatio = effectiveRatio(item.crop, globalCrop)
+  const cropBadge = cropRect ? (cropRatio.kind === 'ratio' ? ratioLabel(cropRatio) : 'Crop') : null
+
   const status = STATUS_META[item.status]
   const result = item.status === 'done' ? item.result : undefined
   const savings = result ? savingsPercent(item.originalBytes, result.outputBytes) : 0
@@ -92,20 +124,48 @@ export default function ImageCard({
     >
       <div className="relative p-1.5 pb-0">
         <div className="checker relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-[0.625rem]">
-          <img
-            data-testid="thumbnail"
-            src={item.previewUrl}
-            alt={item.name}
-            onLoad={onLoad}
-            loading="lazy"
-            decoding="async"
-            className="max-h-full max-w-full object-contain"
-          />
+          {cropStyles ? (
+            <div
+              data-testid="thumbnail-crop-frame"
+              className="relative max-h-full w-full overflow-hidden rounded-[0.375rem]"
+              style={cropStyles.frame}
+            >
+              <img
+                data-testid="thumbnail"
+                src={item.previewUrl}
+                alt={item.name}
+                onLoad={onLoad}
+                loading="lazy"
+                decoding="async"
+                style={cropStyles.image}
+              />
+            </div>
+          ) : (
+            <img
+              data-testid="thumbnail"
+              src={item.previewUrl}
+              alt={item.name}
+              onLoad={onLoad}
+              loading="lazy"
+              decoding="async"
+              className="max-h-full max-w-full object-contain"
+            />
+          )}
           {item.status === 'processing' ? (
             <span aria-hidden="true" className="absolute inset-0 overflow-hidden">
               <span className="absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/[0.08] to-transparent" />
             </span>
           ) : null}
+          <button
+            type="button"
+            data-testid="crop-open-button"
+            aria-label={`Crop ${item.name}`}
+            disabled={processing}
+            onClick={() => openCropEditor(item.id)}
+            className="absolute top-2 left-2 flex size-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white/80 opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 hover:bg-black/75 hover:text-white focus-visible:opacity-100 active:scale-95 disabled:cursor-not-allowed"
+          >
+            <CropGlyph />
+          </button>
           <button
             type="button"
             aria-label={`Remove ${item.name}`}
@@ -147,6 +207,15 @@ export default function ImageCard({
                 className="rounded-full border border-ember/30 bg-ember/10 px-1.5 py-px text-[9px] tracking-[0.08em] text-ember uppercase"
               >
                 Custom
+              </span>
+            ) : null}
+            {cropBadge ? (
+              <span
+                data-testid="crop-badge"
+                title="This image will be cropped"
+                className="rounded-full border border-white/[0.14] bg-white/[0.05] px-1.5 py-px text-[9px] tracking-[0.08em] text-ink-dim uppercase"
+              >
+                {cropBadge}
               </span>
             ) : null}
             <span data-testid="original-size">{formatBytes(item.originalBytes)}</span>
