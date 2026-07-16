@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useImagenStore } from '../store/useImagenStore'
 import { formatBytes, savingsPercent } from '../lib/savings'
+import { cropPreviewStyles } from '../lib/cropPreview'
 
 const JXL_MIME = 'image/jxl'
 
@@ -109,6 +110,14 @@ export default function CompareSlider() {
   const clipRight = 100 - position
   const savings = savingsPercent(item.originalBytes, result.outputBytes)
 
+  const hasDims = item.originalWidth != null && item.originalHeight != null
+  const cropRect = result.cropRect
+  const alignCrop = cropRect != null && hasDims
+  const frameStyle = alignCrop ? { aspectRatio: `${result.width} / ${result.height}` } : undefined
+  const originalStyles = alignCrop
+    ? cropPreviewStyles(cropRect, { width: item.originalWidth!, height: item.originalHeight! })
+    : null
+
   const beginDrag = (clientX: number) => {
     draggingRef.current = true
     updateFromClientX(clientX)
@@ -161,13 +170,29 @@ export default function CompareSlider() {
         >
           <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
             {previewable ? (
-              <img
-                data-testid="compare-optimized"
-                src={result.url}
-                alt={`Optimized ${item.name}`}
-                draggable={false}
-                className="max-h-full max-w-full object-contain"
-              />
+              alignCrop ? (
+                <div
+                  data-testid="compare-frame-optimized"
+                  className="relative max-h-full w-full overflow-hidden"
+                  style={frameStyle}
+                >
+                  <img
+                    data-testid="compare-optimized"
+                    src={result.url}
+                    alt={`Optimized ${item.name}`}
+                    draggable={false}
+                    className="absolute inset-0 h-full w-full"
+                  />
+                </div>
+              ) : (
+                <img
+                  data-testid="compare-optimized"
+                  src={result.url}
+                  alt={`Optimized ${item.name}`}
+                  draggable={false}
+                  className="max-h-full max-w-full object-contain"
+                />
+              )
             ) : (
               <div
                 data-testid="compare-preview-unavailable"
@@ -187,13 +212,29 @@ export default function CompareSlider() {
             className="checker absolute inset-0 flex items-center justify-center overflow-hidden"
             style={{ clipPath: `inset(0 ${clipRight}% 0 0)` }}
           >
-            <img
-              data-testid="compare-original"
-              src={item.previewUrl}
-              alt={`Original ${item.name}`}
-              draggable={false}
-              className="max-h-full max-w-full object-contain"
-            />
+            {alignCrop && originalStyles ? (
+              <div
+                data-testid="compare-frame-original"
+                className="relative max-h-full w-full overflow-hidden"
+                style={frameStyle}
+              >
+                <img
+                  data-testid="compare-original"
+                  src={item.previewUrl}
+                  alt={`Original ${item.name}`}
+                  draggable={false}
+                  style={originalStyles.image}
+                />
+              </div>
+            ) : (
+              <img
+                data-testid="compare-original"
+                src={item.previewUrl}
+                alt={`Original ${item.name}`}
+                draggable={false}
+                className="max-h-full max-w-full object-contain"
+              />
+            )}
           </div>
 
           <span className="pointer-events-none absolute top-3 left-3 rounded-full border border-white/[0.1] bg-black/55 px-2.5 py-1 font-mono text-[9px] tracking-[0.14em] text-white/85 uppercase backdrop-blur-sm">

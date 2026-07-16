@@ -11,6 +11,8 @@ function resetStore(): void {
     globalSettings: defaultEncodeSettings(),
     selectedId: null,
     batch: { status: 'idle', total: 0, completed: 0 },
+    globalCrop: { kind: 'none' },
+    cropEditorId: null,
   })
 }
 
@@ -44,6 +46,24 @@ function seedDone(overrides: Partial<ImageItem> = {}): ImageItem {
   }
   useImagenStore.setState({ images: [item], selectedId: item.id })
   return item
+}
+
+// Mirrors seedDone's convention (setting store state directly) while
+// matching the shape the crop-alignment tests want to seed with.
+function seedDoneImage({
+  originalWidth,
+  originalHeight,
+  result,
+}: {
+  originalWidth: number
+  originalHeight: number
+  result: { width: number; height: number; cropRect?: { x: number; y: number; width: number; height: number } }
+}): void {
+  seedDone({
+    originalWidth,
+    originalHeight,
+    result: makeResult(result),
+  })
 }
 
 beforeEach(() => {
@@ -164,5 +184,31 @@ describe('CompareSlider', () => {
     rerender(<CompareSlider />)
     expect(screen.getByTestId('compare-optimized-size')).toHaveTextContent('300 B')
     expect((screen.getByTestId('compare-optimized') as HTMLImageElement).src).toContain('blob:optimized-new')
+  })
+})
+
+describe('crop alignment', () => {
+  it('renders identical aspect frames on both sides when the result was cropped', () => {
+    seedDoneImage({
+      originalWidth: 1600,
+      originalHeight: 900,
+      result: { width: 900, height: 900, cropRect: { x: 350, y: 0, width: 900, height: 900 } },
+    })
+    render(<CompareSlider />)
+    const frameA = screen.getByTestId('compare-frame-original')
+    const frameB = screen.getByTestId('compare-frame-optimized')
+    expect(frameA.style.aspectRatio).toBe('900 / 900')
+    expect(frameB.style.aspectRatio).toBe('900 / 900')
+    const original = screen.getByTestId('compare-original')
+    // 1600/900 ≈ 177.78% width, offset -350/900 ≈ -38.89%
+    expect(original.style.width).toBe(`${(1600 / 900) * 100}%`)
+    expect(original.style.left).toBe(`-${(350 / 900) * 100}%`)
+  })
+
+  it('keeps the plain markup when the result has no crop', () => {
+    seedDoneImage({ originalWidth: 1600, originalHeight: 900, result: { width: 800, height: 450 } })
+    render(<CompareSlider />)
+    expect(screen.queryByTestId('compare-frame-original')).not.toBeInTheDocument()
+    expect(screen.getByTestId('compare-original')).toBeInTheDocument()
   })
 })
