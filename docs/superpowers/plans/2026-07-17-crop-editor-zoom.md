@@ -15,7 +15,7 @@
 - Dependency pinned exactly: `react-zoom-pan-pinch@4.0.3` (semantics below were verified against this version's source).
 - Zoom range exactly `minScale={1}` to `maxScale={8}`; fit (1×) is the floor.
 - Drag must never pan — `panning.excluded: ['ReactCrop']` (the library matches excluded classes and all their descendants).
-- Plain wheel pans, Ctrl/Cmd+wheel and pinch zoom: `wheel={{ wheelDisabled: true, touchPadDisabled: false }}` + `trackPadPanning={{ disabled: false }}`.
+- Plain wheel pans, Ctrl/Cmd+wheel and pinch zoom: `wheel={{ activationKeys: (keys) => keys.includes('Control') || keys.includes('Meta') }}` + `trackPadPanning={{ disabled: false }}` (amended post-review: the original `wheelDisabled: true` config missed Cmd+wheel on macOS).
 - The library auto-injects its CSS — do NOT import any stylesheet from it.
 - Its wrapper/content divs default to `width: fit-content`, which defeats the img's `max-w-full` clamp — always pass `wrapperClass="!w-full"` and `contentClass="!w-full justify-center"`.
 - Badge copy exactly: `{Math.round(zoom * 100)}% · double-click to reset` (interpunct `·`).

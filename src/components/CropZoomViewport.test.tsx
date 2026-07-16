@@ -13,7 +13,7 @@ interface MockWrapperProps {
   minScale?: number
   maxScale?: number
   disabled?: boolean
-  wheel?: { wheelDisabled?: boolean; touchPadDisabled?: boolean }
+  wheel?: { activationKeys?: (keys: string[]) => boolean }
   panning?: { excluded?: string[] }
   trackPadPanning?: { disabled?: boolean }
   pinch?: { disabled?: boolean }
@@ -40,8 +40,9 @@ vi.mock('react-zoom-pan-pinch', () => ({
       data-min-scale={minScale}
       data-max-scale={maxScale}
       data-disabled={disabled ? 'true' : 'false'}
-      data-wheel-disabled={wheel?.wheelDisabled ? 'true' : 'false'}
-      data-touchpad-disabled={wheel?.touchPadDisabled ? 'true' : 'false'}
+      data-zoom-on-control={typeof wheel?.activationKeys === 'function' && wheel.activationKeys(['Control']) ? 'true' : 'false'}
+      data-zoom-on-meta={typeof wheel?.activationKeys === 'function' && wheel.activationKeys(['Meta']) ? 'true' : 'false'}
+      data-zoom-on-plain-wheel={typeof wheel?.activationKeys === 'function' && wheel.activationKeys([]) ? 'true' : 'false'}
       data-panning-excluded={(panning?.excluded ?? []).join(',')}
       data-trackpad-panning-disabled={trackPadPanning?.disabled ? 'true' : 'false'}
       data-pinch-disabled={pinch?.disabled ? 'true' : 'false'}
@@ -87,8 +88,9 @@ describe('CropZoomViewport', () => {
     expect(wrapper).toHaveAttribute('data-min-scale', '1')
     expect(wrapper).toHaveAttribute('data-max-scale', '8')
     expect(wrapper).toHaveAttribute('data-disabled', 'false')
-    expect(wrapper).toHaveAttribute('data-wheel-disabled', 'true')
-    expect(wrapper).toHaveAttribute('data-touchpad-disabled', 'false')
+    expect(wrapper).toHaveAttribute('data-zoom-on-control', 'true')
+    expect(wrapper).toHaveAttribute('data-zoom-on-meta', 'true')
+    expect(wrapper).toHaveAttribute('data-zoom-on-plain-wheel', 'false')
     expect(wrapper).toHaveAttribute('data-panning-excluded', 'ReactCrop')
     expect(wrapper).toHaveAttribute('data-trackpad-panning-disabled', 'false')
     expect(wrapper).toHaveAttribute('data-pinch-disabled', 'false')

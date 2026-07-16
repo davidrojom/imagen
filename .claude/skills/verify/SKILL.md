@@ -50,3 +50,6 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, has
 - Zoom badge testid: `crop-zoom-badge`; filmstrip nav: `crop-editor-next` / `crop-editor-prev`.
 - The crop editor only shows `.ReactCrop` when an aspect ratio is active; ratio "none"
   shows `[data-testid="crop-editor-uncropped"]` instead.
+- `react-zoom-pan-pinch` is pinned exactly; the unit tests mock its callback contract,
+  so any version bump MUST re-run the browser gesture pass (ctrl+wheel, cmd+wheel,
+  pinch, plain-wheel pan, drag-draws-selection).

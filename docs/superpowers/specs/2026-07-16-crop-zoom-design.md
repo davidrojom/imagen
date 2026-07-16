@@ -65,7 +65,7 @@ user pan around it. It never changes the stored crop rect.
   limitToBounds
   centerOnInit
   disabled={processing}
-  wheel={{ wheelDisabled: true, touchPadDisabled: false }}
+  wheel={{ activationKeys: isZoomActivationKey }}
   trackPadPanning={{ disabled: false }}
   panning={{ excluded: ['ReactCrop'] }}
   pinch={{ disabled: false }}
@@ -76,9 +76,12 @@ user pan around it. It never changes the stored crop rect.
 
 All semantics below were verified against the 4.0.3 source:
 
-- `wheel.wheelDisabled: true` blocks plain-wheel zoom only for non-ctrlKey
-  events; trackpad pinch arrives as a ctrl+wheel event and still zooms
-  (`touchPadDisabled: false` applies to ctrlKey events).
+- `wheel.activationKeys` (function form, any-of) gates wheel zoom on
+  Ctrl **or** Cmd: the library syncs `ctrlKey`/`metaKey` from every event's
+  modifier flags into its pressed-keys state, so Ctrl+wheel, Cmd+wheel, and
+  trackpad pinch (which sets `ctrlKey`) all zoom. The array form is all-of
+  and would require both keys — do not use it. Plain wheel fails the check
+  and falls through to panning.
 - `trackPadPanning` pans on plain wheel/two-finger scroll; its guard skips
   ctrlKey events and only runs when wheel zoom is disallowed, so the two
   never conflict.

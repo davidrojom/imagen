@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch'
 
 const MAX_ZOOM = 8
+// Animated resets can settle a hair above 1; hide the badge for imperceptible zoom.
+const BADGE_VISIBLE_ABOVE = 1.001
+
+// Any-of check: the library syncs ctrlKey/metaKey from event modifier flags,
+// so this fires for Ctrl+wheel, Cmd+wheel, and trackpad pinch (ctrlKey), while
+// plain wheel fails it and falls through to panning.
+const isZoomActivationKey = (keys: string[]) => keys.includes('Control') || keys.includes('Meta')
 
 /**
  * Magnification viewport for the crop editor. Zoom is a viewing aid only:
@@ -26,7 +33,7 @@ export default function CropZoomViewport({
         limitToBounds
         centerOnInit
         disabled={disabled}
-        wheel={{ wheelDisabled: true, touchPadDisabled: false }}
+        wheel={{ activationKeys: isZoomActivationKey }}
         trackPadPanning={{ disabled: false }}
         panning={{ excluded: ['ReactCrop'] }}
         pinch={{ disabled: false }}
@@ -35,11 +42,11 @@ export default function CropZoomViewport({
       >
         {/* The library defaults both divs to fit-content, which would defeat
             the preview img's max-w-full clamp on wide images. */}
-        <TransformComponent wrapperClass="!w-full" contentClass="!w-full justify-center">
+        <TransformComponent wrapperClass="w-full!" contentClass="w-full! justify-center">
           {children}
         </TransformComponent>
       </TransformWrapper>
-      {zoom > 1.001 && (
+      {zoom > BADGE_VISIBLE_ABOVE && (
         <span
           data-testid="crop-zoom-badge"
           className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2.5 py-1 font-mono text-[11px] text-ink backdrop-blur-sm"
