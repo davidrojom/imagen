@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactCrop, { type PercentCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import { useImagenStore } from '../store/useImagenStore'
@@ -68,9 +68,10 @@ function FilmstripThumb({
     <button
       type="button"
       data-testid="crop-filmstrip-thumb"
+      role="option"
       data-active={active ? 'true' : 'false'}
+      aria-selected={active}
       aria-label={`Edit crop for ${item.name}`}
-      aria-current={active}
       onClick={onSelect}
       className={`relative h-14 shrink-0 cursor-pointer overflow-hidden rounded-lg transition-all duration-200 ${
         active ? 'ring-2 ring-ember' : 'opacity-60 ring-1 ring-white/[0.12] hover:opacity-100'
@@ -99,14 +100,39 @@ export default function CropEditorModal() {
 
   const [draft, setDraft] = useState<PercentCrop | null>(null)
   const [draftFor, setDraftFor] = useState<string | null>(null)
+  const dialogRef = useRef<HTMLElement>(null)
 
   const open = cropEditorId != null
 
-  // Escape closes; the page behind must not scroll while the dialog is open
+  // Escape closes; Tab is trapped inside the dialog; the page behind must not
+  // scroll while the dialog is open.
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeCropEditor()
+      if (event.key === 'Escape') {
+        closeCropEditor()
+        return
+      }
+      if (event.key === 'Tab') {
+        const dialog = dialogRef.current
+        if (!dialog) return
+        const focusables = dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), select, input, [tabindex]:not([tabindex="-1"])',
+        )
+        if (focusables.length === 0) return
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        const active = document.activeElement
+        if (event.shiftKey) {
+          if (active === first || !dialog.contains(active)) {
+            event.preventDefault()
+            last.focus()
+          }
+        } else if (active === last || !dialog.contains(active)) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     const previousOverflow = document.body.style.overflow
@@ -134,7 +160,13 @@ export default function CropEditorModal() {
         : undefined
 
   const onComplete = (pct: PercentCrop) => {
-    if (!dims || pct.width < 0.5 || pct.height < 0.5) return
+    if (!dims || pct.width < 0.5 || pct.height < 0.5) {
+      // Rejected micro-selection: drop the draft so the overlay snaps back to
+      // the stored rect instead of showing a selection that was never persisted.
+      setDraft(null)
+      setDraftFor(null)
+      return
+    }
     const rect = percentToRect(pct, dims)
     setImageCrop(item.id, { ...(item.crop ?? {}), rect })
     setDraft(null)
@@ -180,6 +212,7 @@ export default function CropEditorModal() {
       }}
     >
       <section
+        ref={dialogRef}
         data-testid="crop-editor"
         role="dialog"
         aria-modal="true"
@@ -221,6 +254,7 @@ export default function CropEditorModal() {
               <ReactCrop
                 crop={displayCrop}
                 aspect={ratioValue(ratio)}
+                disabled={processing}
                 onChange={(_, pct) => {
                   setDraft(pct)
                   setDraftFor(item.id)

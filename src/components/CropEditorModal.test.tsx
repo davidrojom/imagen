@@ -10,16 +10,21 @@ vi.mock('react-image-crop', () => ({
     children,
     aspect,
     crop,
+    disabled,
+    onChange,
     onComplete,
   }: {
     children: React.ReactNode
     aspect?: number
     crop?: { x: number; y: number; width: number; height: number }
+    disabled?: boolean
+    onChange?: (px: unknown, pct: unknown) => void
     onComplete?: (px: unknown, pct: unknown) => void
   }) => (
     <div
       data-testid="react-crop"
       data-aspect={aspect != null ? aspect.toFixed(4) : 'free'}
+      data-disabled={disabled ? 'true' : 'false'}
       data-crop={crop ? [crop.x, crop.y, crop.width, crop.height].map(Math.round).join(',') : 'unset'}
     >
       <button
@@ -33,6 +38,30 @@ vi.mock('react-image-crop', () => ({
         }
       >
         simulate
+      </button>
+      <button
+        type="button"
+        data-testid="simulate-crop-change"
+        onClick={() =>
+          onChange?.(
+            { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
+            { unit: '%', x: 5, y: 5, width: 80, height: 80 },
+          )
+        }
+      >
+        simulate change
+      </button>
+      <button
+        type="button"
+        data-testid="simulate-crop-complete-tiny"
+        onClick={() =>
+          onComplete?.(
+            { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
+            { unit: '%', x: 10, y: 20, width: 0.2, height: 0.2 },
+          )
+        }
+      >
+        simulate tiny
       </button>
       {children}
     </div>
@@ -80,6 +109,72 @@ describe('CropEditorModal', () => {
     expect(screen.getByTestId('crop-editor-counter')).toHaveTextContent('1 of 2')
     expect(screen.getAllByTestId('crop-filmstrip-thumb')).toHaveLength(2)
     expect(screen.getAllByTestId('crop-filmstrip-thumb')[0]).toHaveAttribute('data-active', 'true')
+  })
+
+  it('exposes listbox option semantics on the filmstrip thumbs', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    const thumbs = screen.getAllByTestId('crop-filmstrip-thumb')
+    expect(thumbs[0]).toHaveAttribute('role', 'option')
+    expect(thumbs[0]).toHaveAttribute('aria-selected', 'true')
+    expect(thumbs[1]).toHaveAttribute('aria-selected', 'false')
+    expect(thumbs[0]).not.toHaveAttribute('aria-current')
+  })
+
+  it('disables the crop overlay while a batch is processing', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('react-crop')).toHaveAttribute('data-disabled', 'true')
+  })
+
+  it('leaves the crop overlay enabled when no batch is running', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('react-crop')).toHaveAttribute('data-disabled', 'false')
+  })
+
+  it('traps Tab focus inside the dialog, wrapping from the last control to the first', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    const dialog = screen.getByTestId('crop-editor')
+    const focusables = dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), select, input, [tabindex]:not([tabindex="-1"])',
+    )
+    expect(focusables.length).toBeGreaterThan(1)
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+
+    last.focus()
+    expect(document.activeElement).toBe(last)
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('discards a rejected micro-selection so the overlay snaps back to the stored rect', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    const stored = screen.getByTestId('react-crop').getAttribute('data-crop')
+
+    // Drag produces a live draft the overlay reflects…
+    fireEvent.click(screen.getByTestId('simulate-crop-change'))
+    expect(screen.getByTestId('react-crop').getAttribute('data-crop')).not.toBe(stored)
+
+    // …but a sub-0.5% completion is rejected and must clear that draft.
+    fireEvent.click(screen.getByTestId('simulate-crop-complete-tiny'))
+    expect(screen.getByTestId('react-crop').getAttribute('data-crop')).toBe(stored)
+    expect(useImagenStore.getState().images[0].crop?.rect).toBeUndefined()
   })
 
   it('locks the overlay to the batch ratio and seeds the centered crop', () => {
