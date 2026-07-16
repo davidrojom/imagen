@@ -67,23 +67,35 @@ user pan around it. It never changes the stored crop rect.
   disabled={processing}
   wheel={{ wheelDisabled: true, touchPadDisabled: false }}
   trackPadPanning={{ disabled: false }}
-  panning={{ excluded: ['ReactCrop__crop-selection', 'ReactCrop__drag-handle', 'crop-zoom-img'] }}
+  panning={{ excluded: ['ReactCrop'] }}
   pinch={{ disabled: false }}
   doubleClick={{ mode: 'reset' }}
+  onTransform={(_, state) => setZoom(state.scale)}
 >
 ```
 
-- `wheel.wheelDisabled: true` blocks plain-wheel zoom; trackpad pinch arrives
-  as a ctrl+wheel event and still zooms (`touchPadDisabled: false`).
-- `trackPadPanning` gives two-finger-scroll / mouse-wheel panning when zoomed.
-- `panning.excluded` covers every element inside `ReactCrop` (selection,
-  handles, and a `crop-zoom-img` class added to the preview img) so drag
-  always operates the crop, never the pan.
+All semantics below were verified against the 4.0.3 source:
 
-**Verify during implementation:** that v4 kept the v3 semantics where
-`wheelDisabled` only blocks non-ctrl wheel events. If not, fall back to
-`wheel.activationKeys: ['Control', 'Meta']` plus a custom ctrlKey check for
-trackpad pinch.
+- `wheel.wheelDisabled: true` blocks plain-wheel zoom only for non-ctrlKey
+  events; trackpad pinch arrives as a ctrl+wheel event and still zooms
+  (`touchPadDisabled: false` applies to ctrlKey events).
+- `trackPadPanning` pans on plain wheel/two-finger scroll; its guard skips
+  ctrlKey events and only runs when wheel zoom is disallowed, so the two
+  never conflict.
+- `panning.excluded` matches the excluded class **and all its descendants**,
+  so excluding `ReactCrop` alone covers the selection, handles, and image —
+  drag always operates the crop, never the pan.
+- The library auto-injects its CSS (no manual stylesheet import) and sets
+  `pointer-events: none` on images inside the content div; pointer events
+  land on ReactCrop's wrapper divs, which is where ReactCrop listens anyway.
+- The library's wrapper/content divs default to `width: fit-content`, which
+  would defeat the preview img's `max-w-full` clamp for wide images. Override
+  with `wrapperClass="!w-full"` and `contentClass="!w-full justify-center"`
+  so the img keeps shrinking to the modal width at 1×.
+- The zoom badge is driven by the `onTransform` callback feeding a local
+  `zoom` state in a dedicated `CropZoomViewport` component
+  (`src/components/CropZoomViewport.tsx`), keyed by `item.id` in the modal so
+  navigation resets both the transform and the badge.
 
 ## Edge cases
 
