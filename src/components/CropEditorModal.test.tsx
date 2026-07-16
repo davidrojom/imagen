@@ -68,6 +68,33 @@ vi.mock('react-image-crop', () => ({
   ),
 }))
 
+vi.mock('react-zoom-pan-pinch', () => ({
+  __esModule: true,
+  TransformWrapper: ({
+    children,
+    disabled,
+    onTransform,
+  }: {
+    children?: React.ReactNode
+    disabled?: boolean
+    onTransform?: (ref: unknown, state: { scale: number; positionX: number; positionY: number }) => void
+  }) => (
+    <div data-testid="transform-wrapper" data-disabled={disabled ? 'true' : 'false'}>
+      <button
+        type="button"
+        data-testid="simulate-zoom-2x"
+        onClick={() => onTransform?.({}, { scale: 2, positionX: 0, positionY: 0 })}
+      >
+        zoom
+      </button>
+      {children}
+    </div>
+  ),
+  TransformComponent: ({ children }: { children?: React.ReactNode }) => (
+    <div data-testid="transform-component">{children}</div>
+  ),
+}))
+
 function makeFile(name: string): File {
   return new File(['x'], name, { type: 'image/jpeg' })
 }
@@ -186,6 +213,46 @@ describe('CropEditorModal', () => {
     expect(rc).toHaveAttribute('data-aspect', (1).toFixed(4))
     // centered 1:1 on 1600x900 → x 350/1600 = 21.875%, width 900/1600 = 56.25%
     expect(rc).toHaveAttribute('data-crop', '22,0,56,100')
+  })
+
+  it('wraps the crop overlay in the zoom viewport', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('transform-wrapper')).toContainElement(
+      screen.getByTestId('react-crop'),
+    )
+  })
+
+  it('keeps the uncropped notice outside the zoom viewport', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setImageCrop(id1, { ratio: { kind: 'none' } })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('crop-editor-uncropped')).toBeInTheDocument()
+    expect(screen.queryByTestId('transform-wrapper')).not.toBeInTheDocument()
+  })
+
+  it('disables zoom while a batch is processing', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    useImagenStore.setState({ batch: { status: 'processing', total: 1, completed: 0 } })
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('transform-wrapper')).toHaveAttribute('data-disabled', 'true')
+  })
+
+  it('resets zoom when navigating to another image', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    fireEvent.click(screen.getByTestId('simulate-zoom-2x'))
+    expect(screen.getByTestId('crop-zoom-badge')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('crop-editor-next'))
+    expect(screen.queryByTestId('crop-zoom-badge')).not.toBeInTheDocument()
   })
 
   it('stores the completed crop as a natural-pixel rect (live-apply)', () => {

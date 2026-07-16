@@ -12,6 +12,7 @@ import {
 } from '../lib/cropMath'
 import { cropPreviewStyles } from '../lib/cropPreview'
 import RatioPicker from './RatioPicker'
+import CropZoomViewport from './CropZoomViewport'
 import type { ImageItem } from '../types'
 
 function CrossGlyph() {
@@ -251,22 +252,24 @@ export default function CropEditorModal() {
                 </span>
               </div>
             ) : (
-              <ReactCrop
-                crop={displayCrop}
-                aspect={ratioValue(ratio)}
-                disabled={processing}
-                onChange={(_, pct) => {
-                  setDraft(pct)
-                  setDraftFor(item.id)
-                }}
-                onComplete={(_, pct) => onComplete(pct)}
-                ruleOfThirds
-                keepSelection
-                minWidth={8}
-                minHeight={8}
-              >
-                {previewImg}
-              </ReactCrop>
+              <CropZoomViewport key={item.id} disabled={processing}>
+                <ReactCrop
+                  crop={displayCrop}
+                  aspect={ratioValue(ratio)}
+                  disabled={processing}
+                  onChange={(_, pct) => {
+                    setDraft(pct)
+                    setDraftFor(item.id)
+                  }}
+                  onComplete={(_, pct) => onComplete(pct)}
+                  ruleOfThirds
+                  keepSelection
+                  minWidth={8}
+                  minHeight={8}
+                >
+                  {previewImg}
+                </ReactCrop>
+              </CropZoomViewport>
             )}
           </div>
 
