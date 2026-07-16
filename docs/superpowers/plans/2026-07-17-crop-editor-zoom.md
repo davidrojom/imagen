@@ -17,7 +17,7 @@
 - Drag must never pan — `panning.excluded: ['ReactCrop']` (the library matches excluded classes and all their descendants).
 - Plain wheel pans, Ctrl/Cmd+wheel and pinch zoom: `wheel={{ activationKeys: (keys) => keys.includes('Control') || keys.includes('Meta') }}` + `trackPadPanning={{ disabled: false }}` (amended post-review: the original `wheelDisabled: true` config missed Cmd+wheel on macOS).
 - The library auto-injects its CSS — do NOT import any stylesheet from it.
-- Its wrapper/content divs default to `width: fit-content`, which defeats the img's `max-w-full` clamp — always pass `wrapperClass="!w-full"` and `contentClass="!w-full justify-center"`.
+- Its wrapper/content divs default to `width: fit-content`, which defeats the img's `max-w-full` clamp — always pass `wrapperClass="w-full!"` and `contentClass="w-full! justify-center"` (canonical Tailwind v4 important suffix).
 - Badge copy exactly: `{Math.round(zoom * 100)}% · double-click to reset` (interpunct `·`).
 - Test ids: `crop-zoom-badge`, and in mocks `transform-wrapper`, `transform-component`, `simulate-zoom-2x`, `simulate-zoom-reset`.
 - All commits: end message with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.

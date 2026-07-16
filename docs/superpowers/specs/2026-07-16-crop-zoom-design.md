@@ -93,7 +93,7 @@ All semantics below were verified against the 4.0.3 source:
   land on ReactCrop's wrapper divs, which is where ReactCrop listens anyway.
 - The library's wrapper/content divs default to `width: fit-content`, which
   would defeat the preview img's `max-w-full` clamp for wide images. Override
-  with `wrapperClass="!w-full"` and `contentClass="!w-full justify-center"`
+  with `wrapperClass="w-full!"` and `contentClass="w-full! justify-center"`
   so the img keeps shrinking to the modal width at 1×.
 - The zoom badge is driven by the `onTransform` callback feeding a local
   `zoom` state in a dedicated `CropZoomViewport` component
