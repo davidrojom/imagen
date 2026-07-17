@@ -13,6 +13,7 @@ vi.mock('react-image-crop', () => ({
     disabled,
     onChange,
     onComplete,
+    className,
   }: {
     children: React.ReactNode
     aspect?: number
@@ -20,12 +21,14 @@ vi.mock('react-image-crop', () => ({
     disabled?: boolean
     onChange?: (px: unknown, pct: unknown) => void
     onComplete?: (px: unknown, pct: unknown) => void
+    className?: string
   }) => (
     <div
       data-testid="react-crop"
       data-aspect={aspect != null ? aspect.toFixed(4) : 'free'}
       data-disabled={disabled ? 'true' : 'false'}
       data-crop={crop ? [crop.x, crop.y, crop.width, crop.height].map(Math.round).join(',') : 'unset'}
+      data-rc-class={className ?? ''}
     >
       <button
         type="button"
@@ -213,6 +216,34 @@ describe('CropEditorModal', () => {
     expect(rc).toHaveAttribute('data-aspect', (1).toFixed(4))
     // centered 1:1 on 1600x900 → x 350/1600 = 21.875%, width 900/1600 = 56.25%
     expect(rc).toHaveAttribute('data-crop', '22,0,56,100')
+  })
+
+  it('caps the crop view height on the ReactCrop element (inherit chain)', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 1, h: 1 })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('react-crop')).toHaveAttribute('data-rc-class', 'max-h-[55dvh]')
+  })
+
+  it('shows a full-image selection when the free ratio has no stored rect', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'free' })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('react-crop')).toHaveAttribute('data-crop', '0,0,100,100')
+  })
+
+  it('keeps filmstrip thumbs at a fixed size regardless of crop', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 16, h: 9 })
+    useImagenStore.getState().setImageCrop(id1, { rect: { x: 0, y: 0, width: 320, height: 180 } })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    for (const thumb of screen.getAllByTestId('crop-filmstrip-thumb')) {
+      expect(thumb.className).toContain('size-14')
+      expect(thumb.querySelector('img')?.className).toContain('object-cover')
+    }
   })
 
   it('wraps the crop overlay in the zoom viewport', () => {

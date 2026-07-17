@@ -10,7 +10,6 @@ import {
   ratioValue,
   rectToPercent,
 } from '../lib/cropMath'
-import { cropPreviewStyles } from '../lib/cropPreview'
 import RatioPicker from './RatioPicker'
 import CropZoomViewport from './CropZoomViewport'
 import type { ImageItem } from '../types'
@@ -59,12 +58,6 @@ function FilmstripThumb({
   active: boolean
   onSelect: () => void
 }) {
-  const globalCrop = useImagenStore((state) => state.globalCrop)
-  const hasDims = item.originalWidth != null && item.originalHeight != null
-  const dims = hasDims ? { width: item.originalWidth!, height: item.originalHeight! } : null
-  const rect = dims ? effectiveCropRect(item.crop, globalCrop, dims) : undefined
-  const styles = rect && dims ? cropPreviewStyles(rect, dims) : null
-
   return (
     <button
       type="button"
@@ -74,17 +67,11 @@ function FilmstripThumb({
       aria-selected={active}
       aria-label={`Edit crop for ${item.name}`}
       onClick={onSelect}
-      className={`relative h-14 shrink-0 cursor-pointer overflow-hidden rounded-lg transition-all duration-200 ${
+      className={`relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-lg transition-all duration-200 ${
         active ? 'ring-2 ring-ember' : 'opacity-60 ring-1 ring-white/[0.12] hover:opacity-100'
       }`}
     >
-      {styles ? (
-        <div className="relative h-full overflow-hidden" style={styles.frame}>
-          <img src={item.previewUrl} alt="" style={styles.image} draggable={false} />
-        </div>
-      ) : (
-        <img src={item.previewUrl} alt="" className="h-full w-auto object-cover" draggable={false} />
-      )}
+      <img src={item.previewUrl} alt="" className="h-full w-full object-cover" draggable={false} />
     </button>
   )
 }
@@ -158,7 +145,13 @@ export default function CropEditorModal() {
       ? draft
       : dims && storedRect
         ? { unit: '%', ...rectToPercent(storedRect, dims) }
-        : undefined
+        : dims && ratio.kind === 'free'
+          ? // Free with no stored rect: a full-frame selection keeps the crop
+            // prop defined (react-image-crop fires onComplete on the
+            // undefined→defined transition, which would cancel a fresh drag)
+            // and gives handles to shape the crop with.
+            { unit: '%', x: 0, y: 0, width: 100, height: 100 }
+          : undefined
 
   const onComplete = (pct: PercentCrop) => {
     if (!dims || pct.width < 0.5 || pct.height < 0.5) {
@@ -254,6 +247,7 @@ export default function CropEditorModal() {
             ) : (
               <CropZoomViewport key={item.id} disabled={processing}>
                 <ReactCrop
+                  className="max-h-[55dvh]"
                   crop={displayCrop}
                   aspect={ratioValue(ratio)}
                   disabled={processing}
