@@ -99,6 +99,10 @@ export default function CropEditorModal() {
   // Escape closes; Tab is trapped inside the dialog; the page behind must not
   // scroll while the dialog is open.
   useEffect(() => {
+    // A drag can be severed mid-gesture by closing the dialog (Escape unmounts
+    // ReactCrop before its completion fires); never carry the flag across an
+    // open/close transition.
+    liveGesture.current = false
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
