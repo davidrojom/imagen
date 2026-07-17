@@ -73,6 +73,11 @@ export default function CropZoomViewport({
     const session = panSession.current
     const api = apiRef.current
     if (!session || session.pointerId !== event.pointerId || !api) return
+    if (disabled) {
+      // The editor went inert mid-drag (e.g. a batch started processing).
+      panSession.current = null
+      return
+    }
     const target = clampPan(
       session.originX + (event.clientX - session.startX),
       session.originY + (event.clientY - session.startY),

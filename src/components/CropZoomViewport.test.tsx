@@ -207,4 +207,21 @@ describe('CropZoomViewport', () => {
     fireEvent.pointerMove(second, { pointerId: 9, clientX: 60, clientY: 60 })
     expect(h.setTransformCalls).toHaveLength(0)
   })
+
+  it('abandons a middle-drag when disabled flips mid-gesture', () => {
+    h.setTransformCalls.length = 0
+    h.mockScale = 3
+    const { rerender } = render(<CropZoomViewport disabled={false}>x</CropZoomViewport>)
+    const viewport = screen.getByTestId('crop-zoom-viewport')
+
+    fireEvent.pointerDown(viewport, { button: 1, pointerId: 11, clientX: 100, clientY: 100 })
+    rerender(<CropZoomViewport disabled>x</CropZoomViewport>)
+    fireEvent.pointerMove(viewport, { pointerId: 11, clientX: 200, clientY: 200 })
+    expect(h.setTransformCalls).toHaveLength(0)
+
+    // Session was dropped, not paused: re-enabling does not resume the drag.
+    rerender(<CropZoomViewport disabled={false}>x</CropZoomViewport>)
+    fireEvent.pointerMove(viewport, { pointerId: 11, clientX: 300, clientY: 300 })
+    expect(h.setTransformCalls).toHaveLength(0)
+  })
 })
