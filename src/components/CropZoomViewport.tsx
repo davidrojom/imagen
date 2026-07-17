@@ -56,9 +56,11 @@ export default function CropZoomViewport({
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const api = apiRef.current
     if (event.button !== 1 || disabled || !api) return
-    if (api.instance.state.scale <= ZOOM_ENGAGED_ABOVE) return
-    // Suppress the browser's middle-click autoscroll and own the gesture.
+    // Claim every middle-button press before it reaches ReactCrop: the crop
+    // library has no button filtering and would drag the selection on middle.
     event.preventDefault()
+    event.stopPropagation()
+    if (api.instance.state.scale <= ZOOM_ENGAGED_ABOVE) return
     event.currentTarget.setPointerCapture?.(event.pointerId)
     panSession.current = {
       pointerId: event.pointerId,
@@ -94,7 +96,7 @@ export default function CropZoomViewport({
     <div
       data-testid="crop-zoom-viewport"
       className="relative w-full"
-      onPointerDown={onPointerDown}
+      onPointerDownCapture={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}

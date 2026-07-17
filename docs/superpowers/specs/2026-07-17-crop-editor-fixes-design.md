@@ -61,6 +61,10 @@ inward (same adjust-not-draw model as the presets). The crop prop is never
 undefined, so the `componentDidUpdate` → `onComplete` deadlock is
 structurally impossible. Storing a full-image rect round-trips to "no crop"
 (`isFullImage` → undefined), so an untouched Free selection changes nothing.
+Persisting is additionally gated on a live-gesture flag set by `onChange`:
+react-image-crop auto-fires `onComplete` when the crop prop first becomes
+defined (e.g. image dimensions arriving after open), and those synthetic
+completions must not store a rect.
 
 **C. Fixed filmstrip thumbs** — every thumb is a fixed `size-14` (56×56)
 box showing the **full image** cover-fitted (`object-cover`), independent of
@@ -78,15 +82,20 @@ dialog scrolls naturally.
 container (~25 lines): pointerdown with `button === 1` while zoomed →
 capture the pointer, prevent default (suppresses browser autoscroll);
 pointermove → `setTransform(clamped x/y, scale, 0)` clamped to
-`ref.instance.bounds` via an exported pure helper `clampToBounds`;
+`ref.instance.bounds` via an exported pure helper `clampPan`;
 pointerup/cancel → release. Uses a `ReactZoomPanPinchContentRef` ref on
 `TransformWrapper`. `setTransform` does not clamp on its own (verified in
-source), hence the helper.
+source), hence the helper. Middle-button presses are claimed in the capture
+phase (`stopPropagation`) so they never reach ReactCrop, which has no button
+filtering of its own.
 
 **F. Two-finger pan** — no code. Verify after A lands (CDP two-point touch
 dispatch): two fingers moving together over the image should pan. Known
 limitation stands: a pinch whose first finger lands on the selection may
-nudge it slightly before the second finger registers.
+nudge it slightly before the second finger registers. Known limitation: in
+Free mode the full-frame selection means a touch pinch's first finger always
+lands on the selection; the capture-phase claim shields middle-click only, so
+the pinch-nudge caveat applies more often in Free mode.
 
 ## Testing
 
@@ -94,7 +103,7 @@ nudge it slightly before the second finger registers.
   exposes it); Free-with-no-rect renders a full-image crop (mock's
   `data-crop` = `0,0,100,100`); thumbs carry fixed-size classes and no
   crop-frame styles; `trackPadPanning.disabled` flips false once zoom > 1
-  (mock re-reads props per render); `clampToBounds` unit tests.
+  (mock re-reads props per render); `clampPan` unit tests.
 - Browser verification: re-drive all six complaints against the dev server
   (tall-image fit, Free handle-shaping stores a rect, thumb stability,
   no bounce at fit + dialog scrolls, badge visible on portrait images,

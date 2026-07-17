@@ -89,6 +89,10 @@ export default function CropEditorModal() {
   const [draft, setDraft] = useState<PercentCrop | null>(null)
   const [draftFor, setDraftFor] = useState<string | null>(null)
   const dialogRef = useRef<HTMLElement>(null)
+  // True only while a user gesture (drag/nudge) produced the pending crop.
+  // react-image-crop auto-fires onComplete when the crop prop transitions
+  // undefined→defined (e.g. dims arriving after load); those must not persist.
+  const liveGesture = useRef(false)
 
   const open = cropEditorId != null
 
@@ -154,6 +158,9 @@ export default function CropEditorModal() {
           : undefined
 
   const onComplete = (pct: PercentCrop) => {
+    const wasLive = liveGesture.current
+    liveGesture.current = false
+    if (!wasLive) return
     if (!dims || pct.width < 0.5 || pct.height < 0.5) {
       // Rejected micro-selection: drop the draft so the overlay snaps back to
       // the stored rect instead of showing a selection that was never persisted.
@@ -171,6 +178,7 @@ export default function CropEditorModal() {
     if (!target) return
     setDraft(null)
     setDraftFor(null)
+    liveGesture.current = false
     openCropEditor(target.id)
   }
 
@@ -252,6 +260,7 @@ export default function CropEditorModal() {
                   aspect={ratioValue(ratio)}
                   disabled={processing}
                   onChange={(_, pct) => {
+                    liveGesture.current = true
                     setDraft(pct)
                     setDraftFor(item.id)
                   }}

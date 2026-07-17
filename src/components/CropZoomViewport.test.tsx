@@ -224,4 +224,33 @@ describe('CropZoomViewport', () => {
     fireEvent.pointerMove(viewport, { pointerId: 11, clientX: 300, clientY: 300 })
     expect(h.setTransformCalls).toHaveLength(0)
   })
+
+  it('claims middle-button presses before they reach children', () => {
+    h.mockScale = 3
+    const innerDown = vi.fn()
+    render(
+      <CropZoomViewport disabled={false}>
+        <button type="button" data-testid="inner-target" onPointerDown={innerDown}>
+          inner
+        </button>
+      </CropZoomViewport>,
+    )
+    const inner = screen.getByTestId('inner-target')
+
+    fireEvent.pointerDown(inner, { button: 1, pointerId: 21, clientX: 10, clientY: 10 })
+    expect(innerDown).not.toHaveBeenCalled()
+
+    fireEvent.pointerDown(inner, { button: 0, pointerId: 22, clientX: 10, clientY: 10 })
+    expect(innerDown).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a middle-drag when disabled from the start', () => {
+    h.setTransformCalls.length = 0
+    h.mockScale = 3
+    render(<CropZoomViewport disabled>x</CropZoomViewport>)
+    const viewport = screen.getByTestId('crop-zoom-viewport')
+    fireEvent.pointerDown(viewport, { button: 1, pointerId: 23, clientX: 10, clientY: 10 })
+    fireEvent.pointerMove(viewport, { pointerId: 23, clientX: 90, clientY: 90 })
+    expect(h.setTransformCalls).toHaveLength(0)
+  })
 })

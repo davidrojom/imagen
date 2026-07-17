@@ -33,12 +33,16 @@ vi.mock('react-image-crop', () => ({
       <button
         type="button"
         data-testid="simulate-crop-complete"
-        onClick={() =>
+        onClick={() => {
+          onChange?.(
+            { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
+            { unit: '%', x: 10, y: 20, width: 50, height: 25 },
+          )
           onComplete?.(
             { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
             { unit: '%', x: 10, y: 20, width: 50, height: 25 },
           )
-        }
+        }}
       >
         simulate
       </button>
@@ -57,14 +61,30 @@ vi.mock('react-image-crop', () => ({
       <button
         type="button"
         data-testid="simulate-crop-complete-tiny"
-        onClick={() =>
+        onClick={() => {
+          onChange?.(
+            { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
+            { unit: '%', x: 10, y: 20, width: 0.2, height: 0.2 },
+          )
           onComplete?.(
             { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
             { unit: '%', x: 10, y: 20, width: 0.2, height: 0.2 },
           )
-        }
+        }}
       >
         simulate tiny
+      </button>
+      <button
+        type="button"
+        data-testid="simulate-crop-complete-auto"
+        onClick={() =>
+          onComplete?.(
+            { unit: 'px', x: 0, y: 0, width: 0, height: 0 },
+            { unit: '%', x: 0, y: 0, width: 100, height: 100 },
+          )
+        }
+      >
+        simulate auto
       </button>
       {children}
     </div>
@@ -340,6 +360,30 @@ describe('CropEditorModal', () => {
     render(<CropEditorModal />)
     expect(screen.getByTestId('crop-editor-uncropped')).toBeInTheDocument()
     expect(screen.queryByTestId('react-crop')).not.toBeInTheDocument()
+  })
+
+  it('ignores an auto-fired onComplete with no preceding change', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'free' })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    fireEvent.click(screen.getByTestId('simulate-crop-complete-auto'))
+    expect(useImagenStore.getState().images[0].crop?.rect).toBeUndefined()
+  })
+
+  it('free micro-selection rejection snaps back to the full frame', () => {
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'free' })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    expect(screen.getByTestId('react-crop').getAttribute('data-crop')).toBe('0,0,100,100')
+
+    fireEvent.click(screen.getByTestId('simulate-crop-change'))
+    expect(screen.getByTestId('react-crop').getAttribute('data-crop')).toBe('5,5,80,80')
+
+    fireEvent.click(screen.getByTestId('simulate-crop-complete-tiny'))
+    expect(screen.getByTestId('react-crop').getAttribute('data-crop')).toBe('0,0,100,100')
+    expect(useImagenStore.getState().images[0].crop?.rect).toBeUndefined()
   })
 
   it('closes on the close button and on Escape', () => {
