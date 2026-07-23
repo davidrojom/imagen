@@ -246,6 +246,19 @@ describe('CropEditorModal', () => {
     expect(screen.getByTestId('react-crop')).toHaveAttribute('data-rc-class', 'max-h-[55dvh]')
   })
 
+  it('shows a full-image selection when the ratio matches the image aspect', () => {
+    // 1600x900 image with a 16:9 crop: the centered crop covers the whole
+    // frame, so no rect is stored — the overlay must still render with
+    // handles instead of disappearing.
+    const [id1] = seedTwoImages()
+    useImagenStore.getState().setGlobalCrop({ kind: 'ratio', w: 16, h: 9 })
+    useImagenStore.getState().openCropEditor(id1)
+    render(<CropEditorModal />)
+    const rc = screen.getByTestId('react-crop')
+    expect(rc).toHaveAttribute('data-aspect', (16 / 9).toFixed(4))
+    expect(rc).toHaveAttribute('data-crop', '0,0,100,100')
+  })
+
   it('shows a full-image selection when the free ratio has no stored rect', () => {
     const [id1] = seedTwoImages()
     useImagenStore.getState().setGlobalCrop({ kind: 'free' })

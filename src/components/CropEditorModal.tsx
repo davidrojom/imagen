@@ -153,11 +153,13 @@ export default function CropEditorModal() {
       ? draft
       : dims && storedRect
         ? { unit: '%', ...rectToPercent(storedRect, dims) }
-        : dims && ratio.kind === 'free'
-          ? // Free with no stored rect: a full-frame selection keeps the crop
-            // prop defined (react-image-crop fires onComplete on the
-            // undefined→defined transition, which would cancel a fresh drag)
-            // and gives handles to shape the crop with.
+        : dims && ratio.kind !== 'none'
+          ? // No stored rect: either a free crop, or a ratio that matches the
+            // image's own aspect (the centered crop covers the full frame, so
+            // effectiveCropRect reports "no crop"). A full-frame selection
+            // keeps the crop prop defined (react-image-crop fires onComplete
+            // on the undefined→defined transition, which would cancel a fresh
+            // drag) and gives handles to shape or shrink the crop with.
             { unit: '%', x: 0, y: 0, width: 100, height: 100 }
           : undefined
 
