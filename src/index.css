@@ -4,6 +4,15 @@
 @import '@fontsource/instrument-serif/400-italic.css';
 @import 'tailwindcss';
 
+/* Applies only on devices that can actually hover (mouse/trackpad). Touch
+   devices fail the media query, so `can-hover:opacity-0` reveal-on-hover
+   controls stay permanently visible there instead of being unreachable. */
+@custom-variant can-hover {
+  @media (hover: hover) {
+    @slot;
+  }
+}
+
 @theme {
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
