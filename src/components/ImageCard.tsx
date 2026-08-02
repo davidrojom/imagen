@@ -163,7 +163,7 @@ export default function ImageCard({
             aria-label={`Crop ${item.name}`}
             disabled={processing}
             onClick={() => openCropEditor(item.id)}
-            className="absolute top-2 left-2 flex size-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white/80 opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 hover:bg-black/75 hover:text-white focus-visible:opacity-100 active:scale-95 disabled:cursor-not-allowed"
+            className="absolute top-2 left-2 flex size-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white/80 backdrop-blur-sm transition-all duration-200 can-hover:opacity-0 can-hover:group-hover:opacity-100 hover:bg-black/75 hover:text-white focus-visible:opacity-100 active:scale-95 disabled:cursor-not-allowed"
           >
             <CropGlyph />
           </button>
@@ -171,7 +171,7 @@ export default function ImageCard({
             type="button"
             aria-label={`Remove ${item.name}`}
             onClick={() => removeImage(item.id)}
-            className="absolute top-2 right-2 flex size-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white/80 opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 hover:bg-black/75 hover:text-white focus-visible:opacity-100 active:scale-95"
+            className="absolute top-2 right-2 flex size-7 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white/80 backdrop-blur-sm transition-all duration-200 can-hover:opacity-0 can-hover:group-hover:opacity-100 hover:bg-black/75 hover:text-white focus-visible:opacity-100 active:scale-95"
           >
             <CrossGlyph />
           </button>
