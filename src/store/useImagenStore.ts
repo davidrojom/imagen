@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 import type { CropRatio, CropSettings, EncodeSettings, ImageItem, ImageResult } from '../types'
 import { defaultEncodeSettings, mergeEncodeSettings, resolveSettings } from '../lib/settings'
+import { imageTypeForFile } from '../lib/imageFiles'
 
 export interface BatchState {
   status: 'idle' | 'processing' | 'done'
   total: number
   completed: number
+  /** Ids counted in `total` that have not yet reached a terminal state. */
+  pendingIds?: string[]
 }
 
 export interface ImagenState {
@@ -49,6 +52,32 @@ function revokeItemUrls(item: ImageItem): void {
 
 const initialBatch: BatchState = { status: 'idle', total: 0, completed: 0 }
 
+function advanceBatch(batch: BatchState, id: string): BatchState {
+  if (batch.pendingIds && !batch.pendingIds.includes(id)) return batch
+  const pendingIds = batch.pendingIds?.filter((pending) => pending !== id)
+  const completed =
+    batch.total > 0 ? Math.min(batch.total, batch.completed + 1) : batch.completed + 1
+  const status = batch.total > 0 && completed >= batch.total ? 'done' : batch.status
+  return { ...batch, completed, status, pendingIds }
+}
+
+function dropFromBatch(batch: BatchState, item: ImageItem): BatchState {
+  if (batch.status !== 'processing' || !batch.pendingIds) return batch
+  if (batch.pendingIds.includes(item.id)) {
+    const pendingIds = batch.pendingIds.filter((pending) => pending !== item.id)
+    const total = batch.total - 1
+    if (total === 0) return { ...initialBatch }
+    const status = batch.completed >= total ? 'done' : batch.status
+    return { ...batch, total, status, pendingIds }
+  }
+  if (item.status === 'done' || item.status === 'error') {
+    const total = batch.total - 1
+    if (total === 0) return { ...initialBatch }
+    return { ...batch, total, completed: Math.max(0, batch.completed - 1) }
+  }
+  return batch
+}
+
 export const useImagenStore = create<ImagenState>()((set) => ({
   images: [],
   globalSettings: defaultEncodeSettings(),
@@ -63,7 +92,7 @@ export const useImagenStore = create<ImagenState>()((set) => ({
         id: genId(),
         file,
         name: file.name,
-        sourceType: file.type,
+        sourceType: imageTypeForFile(file),
         originalBytes: file.size,
         previewUrl: URL.createObjectURL(file),
         settings: null,
@@ -87,6 +116,7 @@ export const useImagenStore = create<ImagenState>()((set) => ({
         images: state.images.filter((item) => item.id !== id),
         selectedId: state.selectedId === id ? null : state.selectedId,
         cropEditorId: state.cropEditorId === id ? null : state.cropEditorId,
+        batch: target ? dropFromBatch(state.batch, target) : state.batch,
       }
     }),
 
@@ -142,7 +172,12 @@ export const useImagenStore = create<ImagenState>()((set) => ({
         progress: undefined,
         error: undefined,
       })),
-      batch: { status: 'processing', total: state.images.length, completed: 0 },
+      batch: {
+        status: 'processing',
+        total: state.images.length,
+        completed: 0,
+        pendingIds: state.images.map((item) => item.id),
+      },
     })),
 
   startProcessingSingle: (id) =>
@@ -155,7 +190,7 @@ export const useImagenStore = create<ImagenState>()((set) => ({
             ? { ...entry, status: 'queued' as const, progress: undefined, error: undefined }
             : entry,
         ),
-        batch: { status: 'processing', total: 1, completed: 0 },
+        batch: { status: 'processing', total: 1, completed: 0, pendingIds: [id] },
       }
     }),
 
@@ -182,13 +217,7 @@ export const useImagenStore = create<ImagenState>()((set) => ({
       const images = state.images.map((item) =>
         item.id === id ? { ...item, status: 'done' as const, progress: 1, result, error: undefined } : item,
       )
-      const completed =
-        state.batch.total > 0
-          ? Math.min(state.batch.total, state.batch.completed + 1)
-          : state.batch.completed + 1
-      const status =
-        state.batch.total > 0 && completed >= state.batch.total ? 'done' : state.batch.status
-      return { images, batch: { ...state.batch, completed, status } }
+      return { images, batch: advanceBatch(state.batch, id) }
     }),
 
   markError: (id, message) =>
@@ -198,13 +227,7 @@ export const useImagenStore = create<ImagenState>()((set) => ({
       const images = state.images.map((item) =>
         item.id === id ? { ...item, status: 'error' as const, error: message } : item,
       )
-      const completed =
-        state.batch.total > 0
-          ? Math.min(state.batch.total, state.batch.completed + 1)
-          : state.batch.completed + 1
-      const status =
-        state.batch.total > 0 && completed >= state.batch.total ? 'done' : state.batch.status
-      return { images, batch: { ...state.batch, completed, status } }
+      return { images, batch: advanceBatch(state.batch, id) }
     }),
 }))
 

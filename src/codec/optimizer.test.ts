@@ -271,6 +271,42 @@ describe('Optimizer', () => {
     expect(state.batch).toMatchObject({ status: 'done', total: 1, completed: 1 })
   })
 
+  it('optimizeAll is a no-op while a batch is already processing', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    seed(['a.png', 'b.png'])
+
+    optimizer.optimizeAll()
+    optimizer.optimizeAll()
+    await runToSettled()
+
+    expect(fake.calls).toHaveLength(2)
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
+  it('creates no result URL when an item reaches a terminal state before its worker completion lands', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const [id] = seed(['a.png'])
+    const urlCallsAfterSeed = vi.mocked(URL.createObjectURL).mock.calls.length
+
+    optimizer.optimizeAll()
+    useImagenStore.getState().markDone(id, {
+      blob: new Blob(['external']),
+      url: 'blob:external',
+      outputType: 'image/webp',
+      outputBytes: 8,
+      width: 1,
+      height: 1,
+      outputName: 'a.webp',
+    })
+    await runToSettled()
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0))
+
+    expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(urlCallsAfterSeed)
+    expect(useImagenStore.getState().images[0].result!.url).toBe('blob:external')
+  })
+
   it('optimizeOne is a no-op while a batch is processing', async () => {
     const fake = new FakeWorkers()
     const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
@@ -282,6 +318,38 @@ describe('Optimizer', () => {
 
     expect(fake.calls).toHaveLength(2)
     expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
+  it('completes the batch when a queued item is removed mid-batch', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const ids = seed(['a.png', 'b.png', 'c.png'])
+
+    optimizer.optimizeAll()
+    useImagenStore.getState().removeImage(ids[2])
+    await runToSettled()
+
+    const state = useImagenStore.getState()
+    expect(state.images).toHaveLength(2)
+    expect(state.images.every((i) => i.status === 'done')).toBe(true)
+    expect(state.batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
+  it('completes the batch and creates no result URL when the in-flight item is removed', async () => {
+    const fake = new FakeWorkers()
+    const optimizer = new Optimizer({ store: useImagenStore, createWorker: fake.create, poolSize: 1 })
+    const ids = seed(['a.png', 'b.png'])
+    const urlCallsAfterSeed = vi.mocked(URL.createObjectURL).mock.calls.length
+
+    optimizer.optimizeAll()
+    useImagenStore.getState().removeImage(ids[0])
+    await runToSettled()
+
+    const state = useImagenStore.getState()
+    expect(state.images).toHaveLength(1)
+    expect(state.images[0].status).toBe('done')
+    expect(state.batch).toMatchObject({ status: 'done', total: 1, completed: 1 })
+    expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBe(urlCallsAfterSeed + 1)
   })
 
   it('clearing the store mid-batch stops the pool and lets a fresh batch complete', async () => {

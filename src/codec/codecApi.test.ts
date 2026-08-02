@@ -1,15 +1,28 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   avifOptions,
   codecApi,
+  decodeToImageData,
   jxlOptions,
   mozjpegOptions,
   outputMimeFor,
   oxipngOptions,
   webpOptions,
 } from './codecApi'
+import { decode as avifDecode } from '@jsquash/avif'
+import { decode as jxlDecode } from '@jsquash/jxl'
 import { defaultEncodeSettings } from '../lib/settings'
 import type { EncodeSettings } from '../types'
+
+vi.mock('@jsquash/jxl', () => ({
+  decode: vi.fn(() => ({ width: 2, height: 1, data: new Uint8ClampedArray(8) })),
+  encode: vi.fn(),
+}))
+
+vi.mock('@jsquash/avif', () => ({
+  decode: vi.fn(() => ({ width: 3, height: 1, data: new Uint8ClampedArray(12) })),
+  encode: vi.fn(),
+}))
 
 function settings(patch: Partial<EncodeSettings>): EncodeSettings {
   return { ...defaultEncodeSettings(patch.format ?? 'webp'), ...patch }
@@ -79,5 +92,33 @@ describe('encode option mapping', () => {
 describe('codecApi surface', () => {
   it('exposes an async processImage function', () => {
     expect(typeof codecApi.processImage).toBe('function')
+  })
+})
+
+describe('decodeToImageData fallback routing', () => {
+  // jsdom has no createImageBitmap, so every call exercises the fallback path.
+  beforeEach(() => {
+    vi.mocked(jxlDecode).mockClear()
+    vi.mocked(avifDecode).mockClear()
+  })
+
+  it('falls back to the JPEG XL decoder for image/jxl sources', async () => {
+    const result = await decodeToImageData(new ArrayBuffer(4), 'image/jxl')
+    expect(jxlDecode).toHaveBeenCalledTimes(1)
+    expect(avifDecode).not.toHaveBeenCalled()
+    expect(result.width).toBe(2)
+  })
+
+  it('falls back to the AVIF decoder for image/avif sources', async () => {
+    const result = await decodeToImageData(new ArrayBuffer(4), 'image/avif')
+    expect(avifDecode).toHaveBeenCalledTimes(1)
+    expect(jxlDecode).not.toHaveBeenCalled()
+    expect(result.width).toBe(3)
+  })
+
+  it('rethrows the original decode failure for other source types instead of trying AVIF', async () => {
+    await expect(decodeToImageData(new ArrayBuffer(4), 'image/png')).rejects.toThrow()
+    expect(jxlDecode).not.toHaveBeenCalled()
+    expect(avifDecode).not.toHaveBeenCalled()
   })
 })

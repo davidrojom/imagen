@@ -49,13 +49,16 @@ export async function decodeToImageData(buffer: ArrayBuffer, sourceType: string)
     ctx.drawImage(bitmap, 0, 0)
     bitmap.close()
     return ctx.getImageData(0, 0, canvas.width, canvas.height)
-  } catch {
+  } catch (error) {
     if (sourceType === 'image/jxl') {
       const { decode } = await import('@jsquash/jxl')
       return decode(buffer)
     }
-    const { decode } = await import('@jsquash/avif')
-    return (await decode(buffer)) as ImageData
+    if (sourceType === 'image/avif') {
+      const { decode } = await import('@jsquash/avif')
+      return (await decode(buffer)) as ImageData
+    }
+    throw error
   }
 }
 

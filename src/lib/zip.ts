@@ -4,6 +4,10 @@ import type { ImageItem } from '../types'
 
 export const ZIP_FILENAME = 'imagen-export.zip'
 
+// Browsers may start the download after the click's call stack unwinds, so the
+// blob URL must outlive it or large ZIP downloads intermittently come up empty.
+export const URL_REVOKE_DELAY_MS = 1_000
+
 export interface ZipEntry {
   name: string
   blob: Blob
@@ -50,7 +54,7 @@ export function saveBlob(blob: Blob, filename: string): void {
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS)
 }
 
 export async function downloadImagesZip(

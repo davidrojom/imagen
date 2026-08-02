@@ -55,6 +55,7 @@ export class Optimizer implements OptimizerLike {
 
   optimizeAll(): void {
     const state = this.store.getState()
+    if (state.batch.status === 'processing') return
     const ids = state.images.map((item) => item.id)
     if (ids.length === 0) return
     for (const item of state.images) {
@@ -100,7 +101,8 @@ export class Optimizer implements OptimizerLike {
   private handleDone(id: string, result: ProcessResult): void {
     const state = this.store.getState()
     const item = state.images.find((entry) => entry.id === id)
-    if (!item) {
+    // Bail before creating an object URL that markDone would silently drop.
+    if (!item || item.status === 'done' || item.status === 'error') {
       this.snapshots.delete(id)
       return
     }

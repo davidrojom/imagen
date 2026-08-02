@@ -40,6 +40,14 @@ describe('addFiles', () => {
     expect(URL.createObjectURL).toHaveBeenCalledTimes(2)
   })
 
+  it('infers sourceType from the extension when the browser gives no MIME type', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('photo.jxl', ''), makeFile('shot.avif', '')])
+    const [jxl, avif] = useImagenStore.getState().images
+    expect(jxl.sourceType).toBe('image/jxl')
+    expect(avif.sourceType).toBe('image/avif')
+  })
+
   it('appends (never replaces) on subsequent adds', () => {
     const { addFiles } = useImagenStore.getState()
     addFiles([makeFile('a.jpg')])
@@ -326,6 +334,88 @@ describe('reducer idempotency and unknown-id guards', () => {
     const state = useImagenStore.getState()
     expect(selectDoneCount(state)).toBe(1)
     expect(selectErrorCount(state)).toBe(1)
+  })
+})
+
+describe('removeImage during batch processing', () => {
+  function seedThree() {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg'), makeFile('b.jpg'), makeFile('c.jpg')])
+    return useImagenStore.getState().images.map((i) => i.id)
+  }
+
+  const fakeResult = {
+    blob: new Blob(['out']),
+    url: 'blob:out',
+    outputType: 'image/webp',
+    outputBytes: 250,
+    width: 100,
+    height: 100,
+    outputName: 'a.webp',
+  }
+
+  it('removing a not-yet-finished item shrinks the batch so remaining completions finish it', () => {
+    const [id1, id2, id3] = seedThree()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().removeImage(id3)
+    expect(useImagenStore.getState().batch).toMatchObject({
+      status: 'processing',
+      total: 2,
+      completed: 0,
+    })
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().markDone(id2, { ...fakeResult, url: 'blob:out-b' })
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
+  it('removing the last pending item completes the batch immediately', () => {
+    const [id1, id2, id3] = seedThree()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().markDone(id2, { ...fakeResult, url: 'blob:out-b' })
+    useImagenStore.getState().removeImage(id3)
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
+  it('removing an already-counted done item keeps the remaining accounting exact', () => {
+    const [id1, id2, id3] = seedThree()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().removeImage(id1)
+    expect(useImagenStore.getState().batch).toMatchObject({
+      status: 'processing',
+      total: 2,
+      completed: 0,
+    })
+    useImagenStore.getState().markDone(id2, { ...fakeResult, url: 'blob:out-b' })
+    useImagenStore.getState().markError(id3, 'boom')
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 2, completed: 2 })
+  })
+
+  it('removing an image added after the batch started leaves the batch untouched', () => {
+    const [id1, id2, id3] = seedThree()
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().addFiles([makeFile('late.jpg')])
+    const late = useImagenStore.getState().images.find((i) => i.name === 'late.jpg')!
+    useImagenStore.getState().removeImage(late.id)
+    expect(useImagenStore.getState().batch).toMatchObject({
+      status: 'processing',
+      total: 3,
+      completed: 0,
+    })
+    useImagenStore.getState().markDone(id1, fakeResult)
+    useImagenStore.getState().markDone(id2, { ...fakeResult, url: 'blob:out-b' })
+    useImagenStore.getState().markDone(id3, { ...fakeResult, url: 'blob:out-c' })
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'done', total: 3, completed: 3 })
+  })
+
+  it('removing the only pending item of a batch resets it to idle', () => {
+    const { addFiles } = useImagenStore.getState()
+    addFiles([makeFile('a.jpg')])
+    const id = useImagenStore.getState().images[0].id
+    useImagenStore.getState().startProcessing()
+    useImagenStore.getState().removeImage(id)
+    expect(useImagenStore.getState().batch).toMatchObject({ status: 'idle', total: 0, completed: 0 })
   })
 })
 
