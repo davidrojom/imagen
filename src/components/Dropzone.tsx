@@ -159,7 +159,7 @@ export default function Dropzone() {
               {dragging ? 'Drop them right here' : 'Drag & drop images here'}
             </p>
             <p className="mt-1.5 text-sm text-ink-faint">
-              or pick files from disk — they are read locally, never uploaded
+              or pick files from disk
             </p>
             <button type="button" onClick={openPicker} className="btn-primary mt-7">
               Choose images

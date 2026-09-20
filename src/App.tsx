@@ -61,13 +61,6 @@ export default function App() {
                 in your browser.
               </span>
             </h2>
-            <p
-              className="mt-7 max-w-xl animate-rise text-base leading-relaxed text-ink-dim"
-              style={{ animationDelay: "140ms" }}
-            >
-              Convert to AVIF, WebP, JPEG&nbsp;XL, PNG or JPEG. Everything runs
-              locally — your files never leave this device.
-            </p>
             <div
               className="mt-14 w-full max-w-3xl animate-rise"
               style={{ animationDelay: "210ms" }}
@@ -77,17 +70,6 @@ export default function App() {
           </section>
         )}
       </main>
-
-      <footer className="mx-auto w-full max-w-6xl px-6 sm:px-8">
-        <div className="flex flex-col gap-3 border-t border-white/[0.07] py-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-ink-faint">
-            Everything is processed on this device.
-          </p>
-          <p className="font-mono text-[10px] tracking-[0.16em] text-ink-faint uppercase">
-            avif · webp · jxl · png · jpeg
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
